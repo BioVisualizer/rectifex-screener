@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Aethelon
+Exec=start.sh
+Icon=io.github.Aethelon
+Type=Application
+Categories=Office;Finance;

@@ -1,0 +1,7 @@
+# Build-Artefakte ignorieren
+/build-dir
+/.flatpak-builder
+
+# Python Cache ignorieren
+__pycache__/
+*.pyc

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.Aethelon</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Aethelon</name>
+  <summary>A quantitative screener for the relative valuation of global stocks</summary>
+
+  <description>
+    <p>
+      Aethelon is a tool for relative stock analysis. It does not calculate a "fair value" but answers the question: "Which companies, compared to all others in the analysis universe, are currently the most attractive based on my chosen strategy?"
+    </p>
+    <p>
+      The app analyzes a universe of nearly 200 global companies across 6 fundamental dimensions (Quality, Value, Growth, Momentum, Dividend, Safety) and allows the user to sort the results based on predefined investment styles.
+    </p>
+    <p>
+      <b>Important Note:</b> The analysis is purely quantitative and does not account for qualitative, forward-looking risks such as disruptive technological changes.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.Aethelon.desktop</launchable>
+  <icons><icon type="stock">io.github.Aethelon</icon></icons>
+  <content_rating type="oars-1.1" />
+  <releases><release version="1.5" date="2025-08-07"/></releases>
+</component>

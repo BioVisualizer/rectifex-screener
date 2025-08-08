@@ -1,0 +1,45 @@
+app-id: io.github.Aethelon
+runtime: org.kde.Platform
+runtime-version: '6.7'
+sdk: org.kde.Sdk
+command: start.sh
+
+# Gives network access to the build process
+build-options:
+  build-args:
+    - --share=network
+
+# Corrected GUI permissions
+finish-args:
+  - --share=network
+  - --device=dri
+  - --socket=x11
+  - --env=DISPLAY=$DISPLAY
+  - --filesystem=xdg-data/icons
+
+modules:
+# Module 1: Installs the Python dependencies
+  - name: python3-deps
+    buildsystem: simple
+    build-commands:
+      - pip3 install --prefix=/app --no-user --no-build-isolation -r requirements.txt
+    sources:
+      - type: file
+        path: app/requirements.txt
+
+  # Module 2: Installs YOUR application files
+  - name: stockscreener
+    buildsystem: simple
+    build-commands:
+
+      - install -D -t /app/bin/ main.py screener_engine.py help_texts.py
+
+
+      - install -D -m 755 start.sh /app/bin/start.sh
+      - install -D -t /app/share/applications/ share/applications/io.github.Aethelon.desktop
+      - install -D -t /app/share/metainfo/ share/metainfo/io.github.Aethelon.appdata.xml
+      - install -D -t /app/share/icons/hicolor/scalable/apps/ share/icons/hicolor/scalable/apps/io.github.Aethelon.svg
+      - gtk-update-icon-cache -f -t /app/share/icons/hicolor
+    sources:
+      - type: dir
+        path: app
