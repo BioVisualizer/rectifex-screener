@@ -7,9 +7,9 @@ An open-source stock analysis tool for Linux that uses fundamental company data 
 
 ---
 
-## What is Aethelon?
+## What is Rectifex?
 
-Aethelon is a tool for **relative analysis**. It answers the question: *"Which companies, compared to all others in the analysis universe, are currently the most attractive based on my chosen strategy?"* This answer is always up-to-date as it is based on the current stock price.
+Rectifex is a tool for **relative analysis**. It answers the question: *"Which companies, compared to all others in the analysis universe, are currently the most attractive based on my chosen strategy?"* This answer is always up-to-date as it is based on the current stock price.
 
 *Built by Lukas Morcinek*
 
@@ -26,7 +26,7 @@ Aethelon is a tool for **relative analysis**. It answers the question: *"Which c
 
 ## Important Note: Limits of this Analysis
 
-Aethelon **does not calculate a "fair value"** for a stock. The scores are based exclusively on historical, quantitative data.
+Rectifex **does not calculate a "fair value"** for a stock. The scores are based exclusively on historical, quantitative data.
 
 For example, a high `Value_Score` only means that a stock is *quantitatively* cheap compared to others. It **does not account for qualitative, forward-looking risks**.
 
@@ -84,8 +84,8 @@ This is a guide for advanced users to build the app from source.
 
 3.  **Build and Install:**
     ```bash
-    flatpak-builder --force-clean build-dir io.github.dante.Aethelon.yml
-    flatpak-builder --user --install --force-clean build-dir io.github.dante.Aethelon.yml
+    flatpak-builder --force-clean build-dir io.github.dante.Rectifex.yml
+    flatpak-builder --user --install --force-clean build-dir io.github.dante.Rectifex.yml
     ```
 ---
 

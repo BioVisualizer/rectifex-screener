@@ -1,5 +1,5 @@
 # =============================================================================
-# Aethelon - Help Texts
+# Rectifex - Help Texts
 # VERSION 56.0: "Full Transparency Update"
 # - FEATURE: A critical new section "Limits of Analysis" has been added to
 #   clarify the difference between relative and absolute valuation.
@@ -7,7 +7,7 @@
 # =============================================================================
 
 HELP_TEXT_DE = """
-# Aethelon - Global Stock Screener
+# Rectifex - Global Stock Screener
 
 Ein Open-Source Aktien-Analysewerkzeug für Linux, das fundamentale Unternehmensdaten nutzt, um Aktien nach verschiedenen Investment-Strategien zu bewerten und zu ranken.
 
@@ -15,15 +15,15 @@ Ein Open-Source Aktien-Analysewerkzeug für Linux, das fundamentale Unternehmens
 
 ---
 
-## Was ist Aethelon?
+## Was ist Rectifex?
 
-Aethelon ist ein Werkzeug für die **relative Analyse**. Es beantwortet die Frage: *"Welche Unternehmen sind im Vergleich zu allen anderen im Analyse-Universum gerade jetzt am attraktivsten nach meiner gewählten Strategie?"* Die Antwort ist immer tagesaktuell, da sie auf dem aktuellen Aktienkurs basiert.
+Rectifex ist ein Werkzeug für die **relative Analyse**. Es beantwortet die Frage: *"Welche Unternehmen sind im Vergleich zu allen anderen im Analyse-Universum gerade jetzt am attraktivsten nach meiner gewählten Strategie?"* Die Antwort ist immer tagesaktuell, da sie auf dem aktuellen Aktienkurs basiert.
 
 ---
 
 ## Wichtiger Hinweis: Grenzen der Analyse
 
-Aethelon berechnet **keinen "fairen Wert"** für eine Aktie. Die Scores basieren ausschließlich auf historischen, quantitativen Daten.
+Rectifex berechnet **keinen "fairen Wert"** für eine Aktie. Die Scores basieren ausschließlich auf historischen, quantitativen Daten.
 
 Ein hoher `Value_Score` bedeutet beispielsweise nur, dass eine Aktie im Vergleich zu anderen *quantitativ* günstig ist. Er berücksichtigt **keine qualitativen, zukunftsgerichteten Risiken**.
 
@@ -57,7 +57,7 @@ Dieses Programm dient ausschließlich zu Bildungs- und Informationszwecken. Die 
 """
 
 HELP_TEXT_EN = """
-# Aethelon - Global Stock Screener
+# Rectifex - Global Stock Screener
 
 An open-source stock analysis tool for Linux that uses fundamental company data to rate and rank stocks according to various investment strategies.
 
@@ -65,15 +65,15 @@ An open-source stock analysis tool for Linux that uses fundamental company data 
 
 ---
 
-## What is Aethelon?
+## What is Rectifex?
 
-Aethelon is a tool for **relative analysis**. It answers the question: *"Which companies, compared to all others in the analysis universe, are currently the most attractive based on my chosen strategy?"* This answer is always up-to-date as it is based on the current stock price.
+Rectifex is a tool for **relative analysis**. It answers the question: *"Which companies, compared to all others in the analysis universe, are currently the most attractive based on my chosen strategy?"* This answer is always up-to-date as it is based on the current stock price.
 
 ---
 
 ## Important Note: Limits of this Analysis
 
-Aethelon **does not calculate a "fair value"** for a stock. The scores are based exclusively on historical, quantitative data.
+Rectifex **does not calculate a "fair value"** for a stock. The scores are based exclusively on historical, quantitative data.
 
 For example, a high `Value_Score` only means that a stock is *quantitatively* cheap compared to others. It **does not account for qualitative, forward-looking risks**.
 
