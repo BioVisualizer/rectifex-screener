@@ -2,8 +2,7 @@
 
 An open-source stock analysis tool for Linux that uses fundamental company data to rate and rank stocks according to various investment strategies.
 
-![Rectifex Screenshot](assets/rectifex-results-table.png)
-*(Instruction: Take a screenshot of your running app, upload it to your GitHub repository, and replace this text with the image link.)*
+![Aethelon Screenshot](assets/aethelon-results-table.png)
 
 ---
 
@@ -11,7 +10,7 @@ An open-source stock analysis tool for Linux that uses fundamental company data 
 
 Rectifex is a tool for **relative analysis**. It answers the question: *"Which companies, compared to all others in the analysis universe, are currently the most attractive based on my chosen strategy?"* This answer is always up-to-date as it is based on the current stock price.
 
-*Built by Lukas Morcinek*
+*Built by Lukas Morcinek, conceptualized in collaboration with an AI.*
 
 ## Features
 
@@ -45,23 +44,12 @@ For example, a high `Value_Score` only means that a stock is *quantitatively* ch
 
 ## Transparency: The 6 Dimensions & Their Metrics
 
-1.  **Quality (Quality_Score):** Measures profitability.
-    *   **Metric:** `ROE_Avg3Y` (Average Return on Equity over the last 3 years).
-
-2.  **Value (Value_Score):** Measures how inexpensive a stock is.
-    *   **Metrics:** `PE` (Price-to-Earnings Ratio) & `PB` (Price-to-Book Ratio).
-
-3.  **Growth (Growth_Score):** Measures revenue growth.
-    *   **Metric:** `RevGrowth3YCAGR` (Compound Annual Growth Rate of revenue over the last 3 years).
-
-4.  **Momentum (Momentum_Score):** Measures the price performance of the last 6 months.
-    *   **Metric:** `Momentum6M`.
-
-5.  **Dividend (Yield_Score):** Measures the dividend return.
-    *   **Metric:** `DivYield` (Dividend Yield).
-
-6.  **Safety (Safety_Score):** Measures financial risk and price volatility.
-    *   **Metrics:** `Volatility` & `DebtEquity` (Debt-to-Equity Ratio).
+1.  **Quality (Quality_Score):** Measures profitability (`ROE_Avg3Y`).
+2.  **Value (Value_Score):** Measures how inexpensive a stock is (`PE` & `PB`).
+3.  **Growth (Growth_Score):** Measures revenue growth (`RevGrowth3YCAGR`).
+4.  **Momentum (Momentum_Score):** Measures price performance (`Momentum6M`).
+5.  **Dividend (Yield_Score):** Measures the dividend return (`DivYield`).
+6.  **Safety (Safety_Score):** Measures financial risk (`Volatility` & `DebtEquity`).
 
 ---
 
@@ -78,20 +66,20 @@ This is a guide for advanced users to build the app from source.
 
 2.  **Clone Repository:**
     ```bash
-    git clone https://github.com/DeinUsername/aethelon-project.git
-    cd aethelon-project
+    git clone https://github.com/BioVisualizer/rectifex-screener.git
+    cd rectifex-screener
     ```
 
 3.  **Build and Install:**
     ```bash
-    flatpak-builder --force-clean build-dir io.github.dante.Rectifex.yml
-    flatpak-builder --user --install --force-clean build-dir io.github.dante.Rectifex.yml
+    flatpak-builder --force-clean build-dir io.github.BioVisualizer.Rectifex.yml
+    flatpak-builder --user --install --force-clean build-dir io.github.BioVisualizer.Rectifex.yml
     ```
 ---
 
 ## Disclaimer
 
-This program is for educational and informational purposes only. The results **do not constitute investment advice or a recommendation to buy or sell.** All data is sourced from third-party APIs (`yfinance`) and may contain errors. Any investment decision based on this data is made solely at your own risk. **Never make an investment decision based on this app alone.**
+This program is for educational and informational purposes only. The results **do not constitute investment advice or a recommendation to buy or sell.** All data is sourced from third-party APIs (`yfinance`) and may contain errors. Any investment decision based on this data is made solely at your own risk.
 
 ## License
 
