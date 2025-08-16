@@ -2,7 +2,7 @@
 
 An open-source stock analysis tool for Linux that uses fundamental company data to rate and rank stocks according to various investment strategies.
 
-![Aethelon Screenshot](assets/aethelon-results-table.png)
+![Rectifex Screenshot](assets/rectifex-results-table.png)
 
 ---
 
@@ -10,7 +10,7 @@ An open-source stock analysis tool for Linux that uses fundamental company data 
 
 Rectifex is a tool for **relative analysis**. It answers the question: *"Which companies, compared to all others in the analysis universe, are currently the most attractive based on my chosen strategy?"* This answer is always up-to-date as it is based on the current stock price.
 
-*Built by Lukas Morcinek, conceptualized in collaboration with an AI.*
+*Built by Lukas Morcinek*
 
 ## Features
 
