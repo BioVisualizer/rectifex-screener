@@ -1,4 +1,4 @@
-# Aethelon - Global Stock Screener
+# Rectifex - Global Stock Screener
 
 An open-source stock analysis tool for Linux that uses fundamental company data to rate and rank stocks according to various investment strategies.
 
