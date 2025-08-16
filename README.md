@@ -2,7 +2,7 @@
 
 An open-source stock analysis tool for Linux that uses fundamental company data to rate and rank stocks according to various investment strategies.
 
-![Aethelon Screenshot](assets/aethelon-results-table.png)
+![Rectifex Screenshot](assets/rectifex-results-table.png)
 *(Instruction: Take a screenshot of your running app, upload it to your GitHub repository, and replace this text with the image link.)*
 
 ---
