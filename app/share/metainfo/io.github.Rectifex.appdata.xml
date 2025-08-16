@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.Aethelon</id>
+  <id>io.github.Rectifex</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
-  <name>Aethelon</name>
+  <name>Rectifex</name>
   <summary>A quantitative screener for the relative valuation of global stocks</summary>
 
   <description>
@@ -18,8 +18,8 @@
     </p>
   </description>
 
-  <launchable type="desktop-id">io.github.Aethelon.desktop</launchable>
-  <icons><icon type="stock">io.github.Aethelon</icon></icons>
+  <launchable type="desktop-id">io.github.Rectifex.desktop</launchable>
+  <icons><icon type="stock">io.github.Rectifex</icon></icons>
   <content_rating type="oars-1.1" />
   <releases><release version="1.5" date="2025-08-07"/></releases>
 </component>

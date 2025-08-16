@@ -34,7 +34,7 @@ class HelpDialog(QDialog):
 
 class MainWindow(QMainWindow):
     def __init__(self):
-        super().__init__(); self.setWindowTitle("Aethelon - Global Stock Screener"); self.setGeometry(100, 100, 1200, 800); self.result_df = None
+        super().__init__(); self.setWindowTitle("Rectifex - Global Stock Screener"); self.setGeometry(100, 100, 1200, 800); self.result_df = None
         main_layout = QVBoxLayout(); top_bar_layout = QHBoxLayout(); controls_layout = QHBoxLayout()
         self.strategy_label = QLabel("Analysis Strategy:")
         self.strategy_combo = QComboBox(); self.strategy_combo.addItems(["Balanced", "High Growth", "Deep Value", "Quality Dividend"])
@@ -103,4 +103,4 @@ class MainWindow(QMainWindow):
         dialog = HelpDialog(self); dialog.exec()
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv); app.setDesktopFileName("io.github.Aethelon"); window = MainWindow(); window.show(); sys.exit(app.exec())
+    app = QApplication(sys.argv); app.setDesktopFileName("io.github.Rectifex"); window = MainWindow(); window.show(); sys.exit(app.exec())
