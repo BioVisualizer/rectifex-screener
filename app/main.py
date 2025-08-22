@@ -1,7 +1,6 @@
 # =============================================================================
 # Rectifex - GUI
-# VERSION 56.0: "International Release"
-#
+# VERSION 57.0: "Stability & Polish"
 # =============================================================================
 
 import sys
@@ -22,9 +21,7 @@ class ScanWorker(QThread):
 
 class HelpDialog(QDialog):
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Help & Information")
-        self.setMinimumSize(700, 500)
+        super().__init__(parent); self.setWindowTitle("Help & Information"); self.setMinimumSize(700, 500)
         self.tab_widget = QTabWidget()
         de_tab = QTextEdit(); de_tab.setReadOnly(True); de_tab.setMarkdown(HELP_TEXT_DE)
         self.tab_widget.addTab(de_tab, "Deutsch")
@@ -36,14 +33,9 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__(); self.setWindowTitle("Rectifex - Global Stock Screener"); self.setGeometry(100, 100, 1200, 800); self.result_df = None
         main_layout = QVBoxLayout(); top_bar_layout = QHBoxLayout(); controls_layout = QHBoxLayout()
-        self.strategy_label = QLabel("Analysis Strategy:")
-        self.strategy_combo = QComboBox(); self.strategy_combo.addItems(["Balanced", "High Growth", "Deep Value", "Quality Dividend"])
-        self.scan_button = QPushButton("Start Scan")
-        self.save_csv_button = QPushButton("Save as CSV"); self.save_csv_button.setEnabled(False)
-        self.help_button = QPushButton("Help")
-        self.scan_button.clicked.connect(self.start_scan)
-        self.save_csv_button.clicked.connect(self.save_as_csv)
-        self.help_button.clicked.connect(self.show_help_dialog)
+        self.strategy_label = QLabel("Analysis Strategy:"); self.strategy_combo = QComboBox(); self.strategy_combo.addItems(["Balanced", "High Growth", "Deep Value", "Quality Dividend"])
+        self.scan_button = QPushButton("Start Scan"); self.save_csv_button = QPushButton("Save as CSV"); self.save_csv_button.setEnabled(False); self.help_button = QPushButton("Help")
+        self.scan_button.clicked.connect(self.start_scan); self.save_csv_button.clicked.connect(self.save_as_csv); self.help_button.clicked.connect(self.show_help_dialog)
         controls_layout.addWidget(self.strategy_label); controls_layout.addWidget(self.strategy_combo); controls_layout.addWidget(self.scan_button); controls_layout.addWidget(self.save_csv_button)
         top_bar_layout.addLayout(controls_layout); top_bar_layout.addStretch(); top_bar_layout.addWidget(self.help_button)
         self.progress_bar = QProgressBar(); self.progress_bar.setVisible(False)
@@ -91,7 +83,7 @@ class MainWindow(QMainWindow):
 
     def save_as_csv(self):
         if self.result_df is None: return
-        path, _ = QFileDialog.getSaveFileName(self, "Save as CSV", "aethelon_scan.csv", "CSV Files (*.csv)")
+        path, _ = QFileDialog.getSaveFileName(self, "Save as CSV", "rectifex_scan.csv", "CSV Files (*.csv)")
         if path:
             try:
                 self.result_df.to_csv(path, index=False, decimal='.', sep=',')
@@ -103,4 +95,4 @@ class MainWindow(QMainWindow):
         dialog = HelpDialog(self); dialog.exec()
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv); app.setDesktopFileName("io.github.Rectifex"); window = MainWindow(); window.show(); sys.exit(app.exec())
+    app = QApplication(sys.argv); app.setDesktopFileName("io.github.BioVisualizer.Rectifex"); window = MainWindow(); window.show(); sys.exit(app.exec())

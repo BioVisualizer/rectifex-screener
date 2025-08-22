@@ -1,7 +1,6 @@
 # =============================================================================
-# Aethelon - Screener Engine
-# VERSION 55.0: "Universe Expansion & Code Clarity"
-#
+# Rectifex - Screener Engine
+# VERSION 57.0: "Gold Standard Ticker List"
 # =============================================================================
 
 import yfinance as yf
@@ -18,38 +17,38 @@ APPROX_RATES = {
 }
 
 # --- Data Acquisition & Auxiliary Functions ---
-
 def get_global_top_tickers():
-
     blue_chip_us = [
-        'AAPL', 'ABBV', 'ACN', 'ADBE', 'AMD', 'AMGN', 'AMZN', 'AVGO', 'AXP', 'BA', 'BAC', 'BLK', 'BRK-B',
-        'C', 'CAT', 'COST', 'CRM', 'CSCO', 'CVX', 'DE', 'DIS', 'DOW', 'GE', 'GILD',
-        'GOOGL', 'GS', 'HD', 'HON', 'IBM', 'INTC', 'ISRG', 'JNJ', 'JPM', 'KO', 'LLY', 'LIN', 'LMT',
-        'MA', 'MCD', 'META', 'MRK', 'MS', 'MSFT', 'NEE', 'NFLX', 'NKE', 'NVDA', 'ORCL',
-        'PEP', 'PFE', 'PG', 'PNC', 'PYPL', 'QCOM', 'RTX', 'SBUX', 'SPGI', 'SQ',
-        'TGT', 'TMO', 'TSLA', 'TXN', 'UBER', 'UNH', 'UPS', 'V', 'WFC', 'WMT', 'XOM'
+        'AAPL', 'ABT', 'ABBV', 'ACN', 'ADBE', 'ADI', 'ADP', 'AMAT', 'AMD', 'AMGN', 'AMT', 'AMZN', 'AVGO', 'AXP',
+        'BA', 'BAC', 'BLK', 'BMY', 'BRK-B', 'C', 'CAT', 'CMCSA', 'COP', 'COST', 'CRM', 'CSCO', 'CVS',
+        'CVX', 'DE', 'DIS', 'DOW', 'DUK', 'GE', 'GILD', 'GOOGL', 'GS', 'HD', 'HON', 'IBM', 'INTC', 'INTU', 'ISRG',
+        'JNJ', 'JPM', 'KO', 'LIN', 'LLY', 'LMT', 'LOW', 'MA', 'MCD', 'MDT', 'META', 'MMM', 'MO', 'MRK',
+        'MS', 'MSFT', 'NEE', 'NFLX', 'NKE', 'NOW', 'NVDA', 'ORCL', 'PEP', 'PFE', 'PG', 'PM', 'PYPL', 'QCOM',
+        'RTX', 'SBUX', 'SO', 'T', 'TMO', 'TSLA', 'TXN', 'UNH', 'UNP', 'UPS', 'V', 'VZ', 'WFC', 'WMT', 'XOM'
     ]
     blue_chip_eu = [
-        'ABBN.SW', 'AIR.PA', 'ALV.DE', 'ASML.AS', 'AZN', 'BAS.DE', 'BAYN.DE',
-        'BHP', 'BMW.DE', 'BN.PA', 'BNP.PA', 'BP', 'DGE.L', 'DTE.DE', 'ENEL.MI',
-        'ENI.MI', 'EQNR.OL', 'ERIC-B.ST', 'GIVN.SW', 'GSK', 'HEN3.DE', 'HSBC',
-        'IBE.MC', 'INGA.AS', 'INVE-B.ST', 'ITX.MC', 'KER.PA', 'LVMUY', 'MBG.DE',
-        'MUV2.DE', 'NESN.SW', 'NG.L', 'NOVN.SW', 'NOVO-B.CO', 'NVO', 'OR.PA', 'PRU.L',
-        'RIO', 'ROG.SW', 'RMS.PA', 'SAN.MC', 'SAN.PA', 'SAP', 'SHEL', 'SIE.DE',
-        'STLA', 'SU.PA', 'TTE', 'UBS', 'UL', 'VOLV-B.ST', 'VOW3.DE', 'ZURN.SW'
+        'ABI.BR', 'ABBN.SW', 'ADS.DE', 'ADYEN.AS', 'AI.PA', 'AIR.PA', 'ALV.DE', 'ASML.AS', 'AZN',
+        'BAS.DE', 'BAYN.DE', 'BMW.DE', 'BNP.PA', 'BP', 'DGE.L', 'DTE.DE', 'ENEL.MI',
+        'ENI.MI', 'EQNR.OL', 'GSK', 'HSBC', 'IBE.MC', 'INGA.AS', 'ISP.MI', 'ITX.MC',
+        'LVMH.PA', 'MBG.DE', 'MC.PA', 'MUV2.DE', 'NESN.SW', 'NOVN.SW', 'NOVO-B.CO', 'OR.PA',
+        'RIO', 'ROG.SW', 'RWE.DE', 'SAF.PA', 'SAN.MC', 'SAP.DE', 'SHEL', 'SIE.DE',
+        'STLA', 'TTE', 'UBSG.SW', 'UL', 'UNA.AS', 'VOD.L', 'VOLV-B.ST', 'VOW3.DE', 'ZURN.SW'
     ]
     blue_chip_asia = [
-        '000660.KS', '005930.KS', '0700.HK', '0883.HK', '1299.HK', '2454.TW', '601398.SS',
-        '6758.T', '7203.T', '8058.T', '9432.T', 'BABA', 'BHP.AX', 'HDB', 'HDFCBANK.NS',
-        'HINDUNILVR.NS', 'INFY', 'MUFG', 'PDD', 'PINGY', 'RELIANCE.NS', 'SMFG', 'SONY',
-        'TCEHY', 'TCS.NS', 'TM', 'TSM'
+        '0005.HK', '005930.KS', '0700.HK', '0939.HK', '1299.HK', '2330.TW', '2454.TW', '3988.HK',
+        '6758.T', '7203.T', '7974.T', '8058.T', '8306.T', '9432.T', '9433.T', '9984.T',
+        '9988.HK', 'AXISBANK.NS', 'BABA', 'BHARTIARTL.NS', 'HCLTECH.NS', 'HDFCBANK.NS', 'ICICIBANK.NS',
+        'INFY.NS', 'ITC.NS', 'KOTAKBANK.NS', 'LT.NS', 'PDD', 'RELIANCE.NS', 'SBIN.NS', 'TCS.NS'
     ]
     blue_chip_row = [
-        'BMO', 'BNS', 'CBA.AX', 'ENB', 'ITUB', 'PBR', 'RY', 'SHOP', 'TD', 'TLS.AX',
-        'VALE', 'WES.AX'
+        'ABEV', 'ANZ.AX', 'BCE', 'BHP.AX', 'BMO', 'BNS', 'CBA.AX', 'CNQ', 'ENB', 'GGB', 'ITUB',
+        'MFC', 'MQG.AX', 'PBR', 'RY', 'SCCO', 'SHOP', 'SU', 'TD', 'TLS.AX', 'TRP', 'VALE',
+        'WBC.AX', 'WDS.AX', 'WES.AX', 'WPM'
     ]
     growth_tech_tickers = [
-        'CRWD', 'ENPH', 'FSLR', 'PANW', 'PLTR', 'ROKU', 'SEDG', 'SNOW', 'U', 'ZS'
+        'ABNB', 'AFRM', 'BILL', 'COIN', 'CRWD', 'DASH', 'DDOG', 'ENPH', 'ETSY', 'FSLR',
+        'MDB', 'NET', 'OKTA', 'PANW', 'PATH', 'PINS', 'PLTR', 'RBLX', 'ROKU',
+        'SEDG', 'SNOW', 'SOFI', 'SPOT', 'SQ', 'TTD', 'TWLO', 'U', 'UPST', 'WDAY', 'ZM', 'ZS'
     ]
     all_tickers = set(blue_chip_us + blue_chip_eu + blue_chip_asia + blue_chip_row + growth_tech_tickers)
     return sorted(list(all_tickers))
@@ -94,18 +93,18 @@ def calculate_metrics(ticker_symbol):
 
 def run_complete_screener(strategy, progress_callback):
     all_tickers = get_global_top_tickers(); total_tickers = len(all_tickers); results = []; failed_tickers = 0
-    with ThreadPoolExecutor(max_workers=15) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         future_to_ticker = {executor.submit(calculate_metrics, ticker): ticker for ticker in all_tickers}
         for i, future in enumerate(as_completed(future_to_ticker)):
             progress_callback.emit(int((i + 1) * (100 / total_tickers)))
             try:
-                result = future.result(timeout=15)
+                result = future.result(timeout=20)
                 if result: results.append(result)
                 else: failed_tickers += 1
             except Exception as e:
                 failed_tickers += 1; logging.warning(f"Ticker {future_to_ticker[future]} hat einen Fehler verursacht: {e}")
     if not results:
-        summary = f"<b>Scan fehlgeschlagen.</b><br><br>0 von {total_tickers} Tickers konnten verarbeitet werden.<br>Bitte überprüfe deine Internetverbindung."
+        summary = f"<b>Scan fehlgeschlagen.</b><br><br>0 von {total_tickers} Tickers konnten verarbeitet werden."
         return (pd.DataFrame(), summary)
     df = pd.DataFrame(results); initial_count = len(df)
     df['MarketCapUSD'] = df['MarketCap'] * df['Currency'].map(APPROX_RATES).fillna(1.0)
