@@ -2,3 +2,4 @@ pandas
 yfinance
 numpy
 PySide6
+requests

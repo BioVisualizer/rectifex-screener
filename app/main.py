@@ -1,103 +1,103 @@
 # =============================================================================
 # Rectifex - GUI
-# VERSION 57.0: "Stability & Polish"
 # =============================================================================
 
 import sys
 import pandas as pd
 import webbrowser
 import re
+import configparser
+import os
+from pathlib import Path
+
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QComboBox, QLabel,
                              QTableWidget, QTableWidgetItem, QProgressBar, QHeaderView,
-                             QMessageBox, QFileDialog, QDialog, QTabWidget, QTextEdit, QStatusBar, QMenu, QStyledItemDelegate)
+                             QMessageBox, QFileDialog, QDialog, QTabWidget, QTextEdit,
+                             QStatusBar, QMenu, QLineEdit, QDialogButtonBox)
 from PySide6.QtCore import QThread, Signal, Qt
-from PySide6.QtGui import QAction, QColor
+from PySide6.QtGui import QAction, QColor, QBrush
 
 import screener_engine
 from help_texts import HELP_TEXT_DE, HELP_TEXT_EN
 
-class ScoreDelegate(QStyledItemDelegate):
-    def paint(self, painter, option, index):
-        score = index.data(Qt.EditRole)
-        # Ensure we only handle cells with valid score data
-        if not isinstance(score, (int, float)) or pd.isna(score):
-            super().paint(painter, option, index)
-            return
+# --- Configuration Handling ---
+CONFIG_DIR = Path.home() / ".config" / "rectifex"
+CONFIG_FILE = CONFIG_DIR / "settings.conf"
 
-        score = max(0, min(100, score))
+def load_api_key():
+    if not CONFIG_FILE.exists():
+        return ""
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
+    return config.get('API', 'key', fallback="")
 
-        # Define colors for the three-tier system
-        red = QColor("#ffcdd2")
-        yellow = QColor("#fff9c4")
-        green = QColor("#c8e6c9")
+def save_api_key(key):
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    config = configparser.ConfigParser()
+    config['API'] = {'key': key}
+    with open(CONFIG_FILE, 'w') as configfile:
+        config.write(configfile)
 
-        # Determine color based on score boundaries
-        if score >= 70:
-            color = green
-        elif score >= 40:
-            color = yellow
-        else:
-            color = red
+# --- Dialogs ---
 
-        # Draw the background bar
-        painter.save()
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(color)
+class SettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        layout = QVBoxLayout()
 
-        # Calculate bar width based on score
-        padding = 3
-        bar_rect = option.rect.adjusted(padding, padding, -padding, -padding)
-        if bar_rect.width() > 0 and bar_rect.height() > 0:
-            bar_width = int(bar_rect.width() * (score / 100.0))
-            painter.drawRect(bar_rect.left(), bar_rect.top(), bar_width, bar_rect.height())
+        layout.addWidget(QLabel("Enter your Financial Modeling Prep API Key:"))
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setText(load_api_key())
+        layout.addWidget(self.api_key_input)
 
-        # Draw the text on top
-        display_text = index.data(Qt.DisplayRole)
-        # Use the default text color from the widget's palette
-        painter.setPen(option.palette.color(option.palette.Text))
-        # Right-align text with some padding
-        text_rect = option.rect.adjusted(0, 0, -padding * 2, 0)
-        painter.drawText(text_rect, Qt.AlignRight | Qt.AlignVCenter, display_text)
+        info_label = QLabel('<a href="https://site.financialmodelingprep.com/register">Get a free API key from Financial Modeling Prep</a>')
+        info_label.setOpenExternalLinks(True)
+        layout.addWidget(info_label)
 
-        painter.restore()
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        layout.addWidget(self.button_box)
+
+        self.setLayout(layout)
+
+    def accept(self):
+        save_api_key(self.api_key_input.text())
+        super().accept()
 
 class ScanWorker(QThread):
     progress = Signal(int); finished = Signal(object)
-    def __init__(self, strategy, tickers):
+    def __init__(self, strategy, tickers, api_key):
         super().__init__()
         self.strategy = strategy
         self.tickers = tickers
+        self.api_key = api_key
     def run(self):
-        self.finished.emit(screener_engine.run_complete_screener(self.strategy, self.tickers, self.progress))
+        self.finished.emit(screener_engine.run_complete_screener(self.strategy, self.tickers, self.api_key, self.progress))
 
 class TickerManagerDialog(QDialog):
     def __init__(self, current_tickers, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Manage Ticker List")
         self.setMinimumSize(400, 500)
-
         self.tickers = current_tickers
-
         layout = QVBoxLayout()
         self.text_edit = QTextEdit()
         self.text_edit.setPlainText("\n".join(self.tickers))
         layout.addWidget(self.text_edit)
-
         button_layout = QHBoxLayout()
         self.load_button = QPushButton("Load from File...")
         self.load_button.clicked.connect(self.load_from_file)
         button_layout.addWidget(self.load_button)
         button_layout.addStretch()
-
         self.save_button = QPushButton("Save and Close")
         self.save_button.clicked.connect(self.accept)
         button_layout.addWidget(self.save_button)
-
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.reject)
         button_layout.addWidget(self.cancel_button)
-
         layout.addLayout(button_layout)
         self.setLayout(layout)
 
@@ -121,19 +121,15 @@ class HelpDialog(QDialog):
         self.setWindowTitle("Help & Information")
         self.setMinimumSize(700, 500)
         self.tab_widget = QTabWidget()
-
         de_tab = QTextEdit(); de_tab.setReadOnly(True); de_tab.setMarkdown(HELP_TEXT_DE)
         self.tab_widget.addTab(de_tab, "Deutsch")
         en_tab = QTextEdit(); en_tab.setReadOnly(True); en_tab.setMarkdown(HELP_TEXT_EN)
         self.tab_widget.addTab(en_tab, "English")
-
         if error_log:
-            log_tab = QTextEdit()
-            log_tab.setReadOnly(True)
+            log_tab = QTextEdit(); log_tab.setReadOnly(True)
             log_tab.setPlainText("\n".join(error_log))
             self.tab_widget.addTab(log_tab, "Scan Log")
             self.tab_widget.setCurrentWidget(log_tab)
-
         layout = QVBoxLayout(); layout.addWidget(self.tab_widget); self.setLayout(layout)
 
 class MainWindow(QMainWindow):
@@ -141,6 +137,7 @@ class MainWindow(QMainWindow):
         super().__init__(); self.setWindowTitle("Rectifex - Global Stock Screener"); self.setGeometry(100, 100, 1200, 800); self.result_df = None
         self.current_tickers = screener_engine.get_global_top_tickers()
         self.scan_errors = []
+        self.api_key = load_api_key()
 
         main_layout = QVBoxLayout(); top_bar_layout = QHBoxLayout(); controls_layout = QHBoxLayout()
         self.strategy_label = QLabel("Analysis Strategy:")
@@ -152,30 +149,41 @@ class MainWindow(QMainWindow):
 
         self.scan_button = QPushButton("Start Scan")
         self.manage_tickers_button = QPushButton("Manage Tickers")
-        self.save_csv_button = QPushButton("Save as CSV")
-        self.save_csv_button.setEnabled(False)
+        self.save_csv_button = QPushButton("Save as CSV"); self.save_csv_button.setEnabled(False)
+
+        action_layout = QHBoxLayout()
+        action_layout.addLayout(controls_layout)
+        action_layout.addStretch()
+
+        self.settings_button = QPushButton("Settings")
         self.help_button = QPushButton("Help")
+        self.settings_button.clicked.connect(self.open_settings_dialog)
+        self.help_button.clicked.connect(self.show_help_dialog)
+        action_layout.addWidget(self.settings_button)
+        action_layout.addWidget(self.help_button)
 
         self.scan_button.clicked.connect(self.start_scan)
         self.manage_tickers_button.clicked.connect(self.open_ticker_dialog)
         self.save_csv_button.clicked.connect(self.save_as_csv)
-        self.help_button.clicked.connect(self.show_help_dialog)
 
-        controls_layout.addWidget(self.strategy_label)
-        controls_layout.addWidget(self.strategy_combo)
-        controls_layout.addWidget(self.scan_button)
-        controls_layout.addWidget(self.manage_tickers_button)
+        controls_layout.addWidget(self.strategy_label); controls_layout.addWidget(self.strategy_combo)
+        controls_layout.addWidget(self.scan_button); controls_layout.addWidget(self.manage_tickers_button)
         controls_layout.addWidget(self.save_csv_button)
 
-        top_bar_layout.addLayout(controls_layout); top_bar_layout.addStretch(); top_bar_layout.addWidget(self.help_button)
+        top_bar_layout.addLayout(action_layout)
         self.progress_bar = QProgressBar(); self.progress_bar.setVisible(False)
         self.results_table = QTableWidget(); self.results_table.setEditTriggers(QTableWidget.NoEditTriggers); self.results_table.setSortingEnabled(True); self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.results_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.results_table.customContextMenuRequested.connect(self.show_context_menu)
         main_layout.addLayout(top_bar_layout); main_layout.addWidget(self.progress_bar); main_layout.addWidget(self.results_table)
         central_widget = QWidget(); central_widget.setLayout(main_layout); self.setCentralWidget(central_widget)
-        self.score_delegate = ScoreDelegate(self)
         self.setStatusBar(QStatusBar(self))
+
+    def open_settings_dialog(self):
+        dialog = SettingsDialog(self)
+        if dialog.exec():
+            self.api_key = load_api_key()
+            self.statusBar().showMessage("Settings saved.", 5000)
 
     def open_ticker_dialog(self):
         dialog = TickerManagerDialog(self.current_tickers, self)
@@ -185,15 +193,17 @@ class MainWindow(QMainWindow):
 
     def start_scan(self):
         self.scan_button.setEnabled(False); self.save_csv_button.setEnabled(False); self.progress_bar.setValue(0); self.progress_bar.setVisible(True); self.results_table.setRowCount(0)
-        self.statusBar().showMessage(f"Starting scan for {len(self.current_tickers)} tickers...")
-        self.worker = ScanWorker(self.strategy_combo.currentText().replace(" ", "_"), self.current_tickers)
+        data_source = "FMP" if self.api_key else "yfinance"
+        self.statusBar().showMessage(f"Starting scan for {len(self.current_tickers)} tickers using {data_source}...")
+        self.worker = ScanWorker(self.strategy_combo.currentText().replace(" ", "_"), self.current_tickers, self.api_key)
         self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.scan_finished)
         self.worker.start()
 
     def update_progress(self, value):
         self.progress_bar.setValue(value)
-        self.statusBar().showMessage(f"Scanning... {value}%")
+        data_source = "FMP" if self.api_key else "yfinance"
+        self.statusBar().showMessage(f"Scanning with {data_source}... {value}%")
 
     def scan_finished(self, results):
         self.progress_bar.setVisible(False); self.scan_button.setEnabled(True)
@@ -215,20 +225,25 @@ class MainWindow(QMainWindow):
         self.results_table.setRowCount(len(df_display)); self.results_table.setColumnCount(len(df_display.columns)); self.results_table.setHorizontalHeaderLabels(df_display.columns)
 
         strategy_col_name = self.strategy_combo.currentText().replace(" ", "_")
-        for c_idx, col_name in enumerate(df_display.columns):
-            if '_Score' in col_name or col_name == strategy_col_name:
-                self.results_table.setItemDelegateForColumn(c_idx, self.score_delegate)
-            else:
-                self.results_table.setItemDelegateForColumn(c_idx, None)
 
         for r_idx, (index, row) in enumerate(df_display.iterrows()):
             for c_idx, col_name in enumerate(df_display.columns):
                 original_col_name = 'MarketCapUSD' if col_name == 'MarketCap (USD)' else col_name
                 raw_value = df.iloc[r_idx][original_col_name]
                 item = QTableWidgetItem()
+
                 if isinstance(raw_value, (int, float)) and not pd.isna(raw_value):
                     item.setData(Qt.EditRole, raw_value)
                     item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+                if '_Score' in col_name or col_name == strategy_col_name:
+                    if isinstance(raw_value, (int, float)) and not pd.isna(raw_value):
+                        score = max(0, min(100, raw_value))
+                        red = QColor("#ffcdd2"); yellow = QColor("#fff9c4"); green = QColor("#c8e6c9")
+                        if score >= 70: item.setBackground(QBrush(green))
+                        elif score >= 40: item.setBackground(QBrush(yellow))
+                        else: item.setBackground(QBrush(red))
+
                 display_text = "N/A"
                 if not pd.isna(raw_value):
                     if col_name == 'MarketCap (USD)': display_text = f'${raw_value/1e9:,.0f}B'
@@ -236,7 +251,10 @@ class MainWindow(QMainWindow):
                     elif col_name == 'PB': display_text = f'{raw_value:,.2f}'
                     elif col_name == 'DivYield': display_text = f'{raw_value:,.2f}%'
                     else: display_text = str(raw_value)
-                item.setText(display_text); self.results_table.setItem(r_idx, c_idx, item)
+
+                item.setText(display_text)
+                self.results_table.setItem(r_idx, c_idx, item)
+
         self.results_table.resizeColumnsToContents(); self.results_table.setSortingEnabled(True)
 
     def show_context_menu(self, pos):

@@ -20,20 +20,20 @@ modules:
   - name: python3-deps
     buildsystem: simple
     build-commands:
-      - pip3 install --prefix=/app --no-user --no-build-isolation -r requirements.txt
+      - pip3 install --prefix=/app --no-user --no-build-isolation -r app/requirements.txt
     sources:
-      - type: file
-        path: app/requirements.txt
+      - type: dir
+        path: app
 
   - name: stockscreener
     buildsystem: simple
     build-commands:
-      - install -D -t /app/bin/ main.py screener_engine.py help_texts.py
+      - install -D -t /app/bin/ app/main.py app/screener_engine.py app/help_texts.py
       - install -D -t /app/share/licenses/io.github.BioVisualizer.Rectifex/ LICENSE
-      - install -D -m 755 start.sh /app/bin/start.sh
-      - install -D -t /app/share/applications/ share/applications/io.github.BioVisualizer.Rectifex.desktop
-      - install -D -t /app/share/metainfo/ share/metainfo/io.github.BioVisualizer.Rectifex.appdata.xml
-      - install -D -t /app/share/icons/hicolor/scalable/apps/ share/icons/hicolor/scalable/apps/io.github.BioVisualizer.Rectifex.svg
+      - install -D -m 755 app/start.sh /app/bin/start.sh
+      - install -D -t /app/share/applications/ app/share/applications/io.github.BioVisualizer.Rectifex.desktop
+      - install -D -t /app/share/metainfo/ app/share/metainfo/io.github.BioVisualizer.Rectifex.appdata.xml
+      - install -D -t /app/share/icons/hicolor/scalable/apps/ app/share/icons/hicolor/scalable/apps/io.github.BioVisualizer.Rectifex.svg
       - gtk-update-icon-cache -f -t /app/share/icons/hicolor
     sources:
       - type: dir
