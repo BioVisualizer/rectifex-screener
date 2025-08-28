@@ -16,6 +16,16 @@ APPROX_RATES = {
     'NOK': 0.094, 'INR': 0.012, 'KRW': 0.00072, 'CNY': 0.14, 'GBp': 0.0127
 }
 
+STRATEGY_DEFINITIONS = {
+    "Balanced": {'Quality_Score': 0.30, 'Value_Score': 0.25, 'Growth_Score': 0.20, 'Momentum_Score': 0.10, 'Yield_Score': 0.10, 'Safety_Score': 0.05},
+    "Deep_Value": {'Value_Score': 0.70, 'Safety_Score': 0.20, 'Yield_Score': 0.10},
+    "High_Growth": {'Growth_Score': 0.60, 'Quality_Score': 0.30, 'Momentum_Score': 0.10},
+    "Quality_Dividend": {'Yield_Score': 0.50, 'Quality_Score': 0.30, 'Safety_Score': 0.20}
+}
+
+def get_strategy_definitions():
+    return STRATEGY_DEFINITIONS
+
 # --- Data Acquisition & Auxiliary Functions ---
 def get_global_top_tickers():
     blue_chip_us = [
@@ -91,31 +101,43 @@ def calculate_metrics(ticker_symbol):
         return metrics
     except Exception as e: return None
 
-def run_complete_screener(strategy, progress_callback):
-    all_tickers = get_global_top_tickers(); total_tickers = len(all_tickers); results = []; failed_tickers = 0
+def run_complete_screener(strategy, tickers, progress_callback):
+    all_tickers = tickers; total_tickers = len(all_tickers); results = []; failed_list = []
     with ThreadPoolExecutor(max_workers=8) as executor:
         future_to_ticker = {executor.submit(calculate_metrics, ticker): ticker for ticker in all_tickers}
         for i, future in enumerate(as_completed(future_to_ticker)):
+            ticker = future_to_ticker[future]
             progress_callback.emit(int((i + 1) * (100 / total_tickers)))
             try:
                 result = future.result(timeout=20)
-                if result: results.append(result)
-                else: failed_tickers += 1
+                if result:
+                    results.append(result)
+                else:
+                    failed_list.append(f"{ticker}: No data returned from API.")
             except Exception as e:
-                failed_tickers += 1; logging.warning(f"Ticker {future_to_ticker[future]} hat einen Fehler verursacht: {e}")
+                failed_list.append(f"{ticker}: Data request failed ({type(e).__name__}).")
+                logging.warning(f"Ticker {ticker} caused an exception: {e}")
     if not results:
-        summary = f"<b>Scan fehlgeschlagen.</b><br><br>0 von {total_tickers} Tickers konnten verarbeitet werden."
+        summary = {
+            "total_tickers": total_tickers,
+            "initial_count": 0,
+            "failed_count": total_tickers,
+            "final_count": 0,
+            "failed_list": [f"{t}: Scan failed" for t in all_tickers]
+        }
         return (pd.DataFrame(), summary)
     df = pd.DataFrame(results); initial_count = len(df)
     df['MarketCapUSD'] = df['MarketCap'] * df['Currency'].map(APPROX_RATES).fillna(1.0)
     df['NormalizedName'] = df['Name'].str.lower().str.replace(r' inc| corporation| corp| plc| se| sa| ag| ltd| limited| group| holdings| n\.v\.', '', regex=True).str.strip()
     df = df.sort_values('MarketCapUSD', ascending=False).drop_duplicates(subset=['NormalizedName'], keep='first')
     df = df[df['PE'].isnull() | (df['PE'] > 0)].copy(); final_count = len(df)
-    summary = (f"<b>Scan-Zusammenfassung</b><br><br>"
-        f"Ticker im Universum: {total_tickers}<br>"
-        f"Datenabruf erfolgreich: {initial_count}<br>"
-        f"Datenabruf fehlgeschlagen: {failed_tickers}<br><hr>"
-        f"<b>Finales Ergebnis nach Qualitätsfilterung: {final_count} Aktien in der Tabelle.</b>")
+    summary_details = {
+        "total_tickers": total_tickers,
+        "initial_count": initial_count,
+        "failed_count": len(failed_list),
+        "final_count": final_count,
+        "failed_list": failed_list
+    }
     metrics_to_rank = {'ROE_Avg3Y': False, 'PE': True, 'PB': True, 'RevGrowth3YCAGR': False, 'Momentum6M': False, 'DivYield': False, 'Volatility': True, 'DebtEquity': True}
     for col, asc in metrics_to_rank.items():
         if col in df.columns:
@@ -128,15 +150,14 @@ def run_complete_screener(strategy, progress_callback):
             rank_col = f'Rank_{metric}'
             if rank_col in df.columns: score_sum += df[rank_col].fillna(50) * weight
         df[style] = 100 - score_sum
-    strategy_definitions = {"Balanced": {'Quality_Score': 0.30, 'Value_Score': 0.25, 'Growth_Score': 0.20, 'Momentum_Score': 0.10, 'Yield_Score': 0.10, 'Safety_Score': 0.05},"Deep_Value": {'Value_Score': 0.70, 'Safety_Score': 0.20, 'Yield_Score': 0.10},"High_Growth": {'Growth_Score': 0.60, 'Quality_Score': 0.30, 'Momentum_Score': 0.10},"Quality_Dividend": {'Yield_Score': 0.50, 'Quality_Score': 0.30, 'Safety_Score': 0.20}}
-    for strat_name, weights in strategy_definitions.items():
+    for strat_name, weights in STRATEGY_DEFINITIONS.items():
         score_sum = pd.Series(0, index=df.index)
         for score, weight in weights.items():
             if score in df.columns: score_sum += df[score].fillna(50) * weight
         df[strat_name] = score_sum
     for col in df.columns:
-        if '_Score' in col or col in strategy_definitions: df[col] = df[col].round(1)
+        if '_Score' in col or col in STRATEGY_DEFINITIONS: df[col] = df[col].round(1)
     display_columns = ['Name','Ticker','Country','Sector',strategy,'Quality_Score','Value_Score','Growth_Score','Momentum_Score','Yield_Score','Safety_Score','MarketCapUSD','PE','PB','ROE_Avg3Y','RevGrowth3YCAGR','DivYield']
     final_df = df.sort_values(by=strategy, ascending=False)
     final_df = final_df[[col for col in display_columns if col in final_df.columns]]
-    return (final_df, summary)
+    return (final_df, summary_details)
