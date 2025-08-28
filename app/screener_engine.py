@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import configparser
 from pathlib import Path
 import os
+import time
 
 # --- Global Configuration ---
 APPROX_RATES = {
@@ -132,6 +133,7 @@ def calculate_metrics_fmp(ticker, api_key):
 
 def calculate_metrics_yfinance(ticker_symbol):
     try:
+        time.sleep(0.1) # Add a delay to avoid throttling
         ticker = yf.Ticker(ticker_symbol); info = ticker.info
         if not info or info.get('quoteType') != 'EQUITY' or info.get('marketCap') is None: return None
         currency = info.get('currency', 'N/A')
