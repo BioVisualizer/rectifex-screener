@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.BioVisualizer.Rectifex</id>
+
+  <name>Rectifex</name>
+  <summary>A quantitative screener for the relative valuation of global stocks</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer_name>Lukas Morcinek</developer_name>
+
+  <description>
+    <p>
+      Rectifex is a tool for relative stock analysis. It does not calculate a "fair value" but answers the question: "Which companies, compared to all others in the analysis universe, are currently the most attractive based on my chosen strategy?"
+    </p>
+    <p>
+      The app analyzes a universe of global companies across 6 fundamental dimensions (Quality, Value, Growth, Momentum, Dividend, Safety) and allows the user to sort the results based on predefined investment styles.
+    </p>
+    <p>
+      <b>Important Note:</b> The analysis is purely quantitative and does not account for qualitative, forward-looking risks such as disruptive technological changes.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.BioVisualizer.Rectifex.desktop</launchable>
+  <icons>
+    <icon type="stock">io.github.BioVisualizer.Rectifex</icon>
+  </icons>
+
+  <url type="homepage">https://github.com/BioVisualizer/rectifex-screener</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/BioVisualizer/rectifex-screener/main/assets/rectifex-results-table.png</image>
+      <caption>The main results table after a scan</caption>
+    </screenshot>
+  </screenshots>
+
+  <categories>
+    <category>Office</category>
+    <category>Finance</category>
+  </categories>
+
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="58.0" date="2025-08-28" />
+  </releases>
+</component>

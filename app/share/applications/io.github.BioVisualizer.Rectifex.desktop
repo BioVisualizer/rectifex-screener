@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Rectifex
 Exec=start.sh
-Icon=io.github.Rectifex
+Icon=io.github.BioVisualizer.Rectifex
 Type=Application
 Categories=Office;Finance;
