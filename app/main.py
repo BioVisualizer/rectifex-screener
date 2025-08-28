@@ -27,15 +27,18 @@ class ScoreDelegate(QStyledItemDelegate):
 
         score = max(0, min(100, score))
 
-        # Define color scheme: Red (0) -> Yellow (50) -> Green (100)
-        if score <= 50:
-            # Interpolate from Red (H=0) to Yellow (H=60)
-            hue = score * 1.2
-        else:
-            # Interpolate from Yellow (H=60) to Green (H=120)
-            hue = 60 + (score - 50) * 1.2
+        # Define colors for the three-tier system
+        red = QColor("#ffcdd2")
+        yellow = QColor("#fff9c4")
+        green = QColor("#c8e6c9")
 
-        color = QColor.fromHsvF(hue / 360.0, 0.6, 0.95)
+        # Determine color based on score boundaries
+        if score >= 70:
+            color = green
+        elif score >= 40:
+            color = yellow
+        else:
+            color = red
 
         # Draw the background bar
         painter.save()
