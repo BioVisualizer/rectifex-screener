@@ -8,6 +8,7 @@ import configparser
 from pathlib import Path
 import os
 import time
+import json
 
 # --- Global Configuration ---
 APPROX_RATES = {
@@ -16,15 +17,49 @@ APPROX_RATES = {
     'NOK': 0.094, 'INR': 0.012, 'KRW': 0.00072, 'CNY': 0.14, 'GBp': 0.0127
 }
 
-STRATEGY_DEFINITIONS = {
-    "Balanced": {'Quality_Score': 0.30, 'Value_Score': 0.25, 'Growth_Score': 0.20, 'Momentum_Score': 0.10, 'Yield_Score': 0.10, 'Safety_Score': 0.05},
-    "Deep_Value": {'Value_Score': 0.70, 'Safety_Score': 0.20, 'Yield_Score': 0.10},
-    "High_Growth": {'Growth_Score': 0.60, 'Quality_Score': 0.30, 'Momentum_Score': 0.10},
-    "Quality_Dividend": {'Yield_Score': 0.50, 'Quality_Score': 0.30, 'Safety_Score': 0.20}
-}
+CONFIG_DIR = Path.home() / ".config" / "rectifex"
+STRATEGIES_FILE = CONFIG_DIR / "strategies.json"
 
 def get_strategy_definitions():
-    return STRATEGY_DEFINITIONS
+    """
+    Loads strategy definitions from strategies.json.
+    If the file doesn't exist, it creates a default one.
+    """
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    if not STRATEGIES_FILE.exists():
+        default_strategies = {
+          "Balanced": {
+            "weights": {"Quality_Score": 0.30, "Value_Score": 0.25, "Growth_Score": 0.20, "Momentum_Score": 0.10, "Yield_Score": 0.10, "Safety_Score": 0.05},
+            "predefined": True
+          },
+          "Deep Value": {
+            "weights": {"Value_Score": 0.70, "Safety_Score": 0.20, "Yield_Score": 0.10},
+            "predefined": True
+          },
+          "High Growth": {
+            "weights": {"Growth_Score": 0.60, "Quality_Score": 0.30, "Momentum_Score": 0.10},
+            "predefined": True
+          },
+          "Quality Dividend": {
+            "weights": {"Yield_Score": 0.50, "Quality_Score": 0.30, "Safety_Score": 0.20},
+            "predefined": True
+          }
+        }
+        save_strategy_definitions(default_strategies)
+        return default_strategies
+    else:
+        with open(STRATEGIES_FILE, 'r') as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                logging.error("Could not decode strategies.json. Returning empty dict.")
+                return {}
+
+def save_strategy_definitions(strategies):
+    """Saves the strategy definitions to strategies.json."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    with open(STRATEGIES_FILE, 'w') as f:
+        json.dump(strategies, f, indent=4)
 
 def get_global_top_tickers():
     # This list is a combination of the original tickers and a sample of new tickers from major indices.
@@ -262,15 +297,17 @@ def run_complete_screener(strategy, tickers, api_key, progress_callback):
                 score_sum += df[rank_col].fillna(50) * weight
         df[style] = 100 - score_sum
 
-    for strat_name, weights in STRATEGY_DEFINITIONS.items():
+    strategy_definitions = get_strategy_definitions()
+    for strat_name, strat_data in strategy_definitions.items():
         score_sum = pd.Series(0, index=df.index, dtype=float)
+        weights = strat_data.get('weights', {})
         for score, weight in weights.items():
             if score in df.columns:
                 score_sum += df[score].fillna(50) * weight
         df[strat_name] = score_sum
 
     for col in df.columns:
-        if '_Score' in col or col in STRATEGY_DEFINITIONS: df[col] = df[col].round(1)
+        if '_Score' in col or col in strategy_definitions: df[col] = df[col].round(1)
 
     display_columns = ['Name','Ticker','Country','Sector',strategy,'Quality_Score','Value_Score','Growth_Score','Momentum_Score','Yield_Score','Safety_Score','MarketCapUSD','PE','PB','ROE_Avg3Y','RevGrowth3YCAGR','DivYield']
     final_df = df.sort_values(by=strategy, ascending=False)
