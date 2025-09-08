@@ -14,11 +14,11 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QComboBox, QLabel,
                              QTableWidget, QTableWidgetItem, QProgressBar, QHeaderView,
                              QMessageBox, QFileDialog, QDialog, QTabWidget, QTextEdit,
-                             QStatusBar, QMenu, QLineEdit, QDialogButtonBox)
+                             QStatusBar, QMenu, QLineEdit, QDialogButtonBox, QListWidget,
+                             QGroupBox, QFormLayout, QSpinBox)
 from PySide6.QtCore import QThread, Signal, Qt
 from PySide6.QtGui import QAction, QColor, QBrush
 
-from PySide6.QtWidgets import (QListWidget, QGroupBox, QFormLayout, QSpinBox)
 import screener_engine
 from help_texts import HELP_TEXT_DE, HELP_TEXT_EN
 import copy
@@ -363,7 +363,7 @@ class MainWindow(QMainWindow):
         self.strategy_label = QLabel("Analysis Strategy:")
         self.strategy_definitions = screener_engine.get_strategy_definitions()
         self.strategy_combo = QComboBox()
-        self.strategy_combo.addItems(sorted(self.strategy_definitions.keys()))
+        self.strategy_combo.addItems(self.strategy_definitions.keys())
         self.strategy_combo.currentTextChanged.connect(self.update_strategy_tooltip)
         self.update_strategy_tooltip(self.strategy_combo.currentText())
 
