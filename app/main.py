@@ -94,7 +94,7 @@ class ChartDialog(QDialog):
         self.setLayout(layout)
 
 class ScanWorker(QThread):
-    progress = Signal(int); finished = Signal(object)
+    progress = Signal(tuple); finished = Signal(object)
     def __init__(self, strategy, tickers, api_key):
         super().__init__()
         self.strategy = strategy
@@ -492,10 +492,11 @@ class MainWindow(QMainWindow):
         self.worker.finished.connect(self.scan_finished)
         self.worker.start()
 
-    def update_progress(self, value):
-        self.progress_bar.setValue(value)
-        data_source = "FMP" if self.api_key else "yfinance"
-        self.statusBar().showMessage(f"Scanning with {data_source}... {value}%")
+    def update_progress(self, progress_data):
+        count, total, ticker = progress_data
+        percent = int((count / total) * 100) if total > 0 else 0
+        self.progress_bar.setValue(percent)
+        self.statusBar().showMessage(f"Scanning ({count}/{total}): {ticker}...")
 
     def scan_finished(self, results):
         self.progress_bar.setVisible(False); self.scan_button.setEnabled(True)
