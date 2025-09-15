@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QTableWidget, QTableWidgetItem, QProgressBar, QHeaderView,
                              QMessageBox, QFileDialog, QDialog, QTabWidget, QTextEdit,
                              QStatusBar, QMenu, QLineEdit, QDialogButtonBox, QListWidget,
-                             QGroupBox, QFormLayout, QSpinBox)
+                             QGroupBox, QFormLayout, QSpinBox, QSizePolicy)
 from PySide6.QtCore import QThread, Signal, Qt
 from PySide6.QtGui import QAction, QColor, QBrush
 
@@ -84,6 +84,11 @@ class ChartDialog(QDialog):
         layout = QVBoxLayout()
         canvas = FigureCanvas(fig)
         canvas.setParent(self)
+
+        # Set the size policy to be expanding
+        canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        canvas.updateGeometry()
+
         layout.addWidget(canvas)
 
         self.setLayout(layout)
