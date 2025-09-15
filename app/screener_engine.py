@@ -135,7 +135,7 @@ def get_global_top_tickers():
         "LGEN.L", "LH", "LHA.DE", "LHX", "LI.PA", "LIN", "LIN.DE", "LIV.L", "LLC.AX", "LLD.L", "LLOY.L",
         "LLY", "LMIN.SW", "LMT", "LMT.L", "LNE.L", "LNT", "LOGN.SW", "LOH.DE", "LOND.L", "LORE.PA", "LOW",
         "LR.PA", "LSE.L", "LT.NS", "LUG.L", "LUV", "LVMH.PA", "LXS.DE", "LYB", "LYV", "M&G.L", "M&M.NS",
-        "MA", "MAB.L", "MAP.MC", "MAR", "MARUTI.NS", "MAS", "MB.MI", "MBG.de", "MC.PA", "MCD", "MCD.L",
+        "MA", "MAB.L", "MAP.MC", "MAR", "MARUTI.NS", "MAS", "MB.MI", "MBG.DE", "MC.PA", "MCD", "MCD.L",
         "MCHP", "MCK", "MCO", "MCRO.L", "MDB", "MDC.L", "MDI.L", "MDLZ", "MDT", "MEL.MC", "MERK.DE", "META",
         "MFC", "MG.TO", "MGF.L", "MGGT.L", "MKS.L", "ML.PA", "MMC", "MMM", "MNDI.L", "MNG.L", "MNST", "MO",
         "MONC.IT", "MOS", "MOW.DE", "MPC", "MPI.L", "MQG.AX", "MRK", "MRK.DE", "MRL.MC", "MRO", "MRO.L",
