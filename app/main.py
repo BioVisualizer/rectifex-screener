@@ -100,8 +100,17 @@ class ScanWorker(QThread):
         self.strategy = strategy
         self.tickers = tickers
         self.api_key = api_key
+        self._stopped = False
+
     def run(self):
-        self.finished.emit(screener_engine.run_complete_screener(self.strategy, self.tickers, self.api_key, self.progress))
+        self.finished.emit(screener_engine.run_complete_screener(self.strategy, self.tickers, self.api_key, self.progress, worker=self))
+
+    def stop(self):
+        """Stops the thread."""
+        self._stopped = True
+
+    def is_stopped(self):
+        return self._stopped
 
 class TickerManagerDialog(QDialog):
     def __init__(self, current_tickers, parent=None):
@@ -379,11 +388,13 @@ class StrategyEditorDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__(); self.setWindowTitle("Rectifex - Global Stock Screener"); self.setGeometry(100, 100, 1200, 800); self.result_df = None
-        self.current_tickers = screener_engine.get_global_top_tickers()
+        self.current_tickers = screener_engine.get_default_tickers()
         self.scan_errors = []
         self.api_key = load_api_key()
         self.chart_cache = {}
         self.search_col_indices = None # To cache search column indices
+        self.worker = None
+        self.is_scanning = False
 
         main_layout = QVBoxLayout(); top_bar_layout = QHBoxLayout(); controls_layout = QHBoxLayout()
         self.strategy_label = QLabel("Analysis Strategy:")
@@ -394,19 +405,26 @@ class MainWindow(QMainWindow):
         self.update_strategy_tooltip(self.strategy_combo.currentText())
 
         self.scan_button = QPushButton("Start Scan")
-        self.manage_tickers_button = QPushButton("Manage Tickers")
         self.save_csv_button = QPushButton("Save as CSV"); self.save_csv_button.setEnabled(False)
+
+        # --- Ticker Source Selection ---
+        self.ticker_source_label = QLabel("Ticker Source:")
+        self.ticker_source_combo = QComboBox()
+        self.ticker_source_combo.addItems(["Default List", "S&P 500", "Nasdaq 100", "Dow Jones", "Custom List"])
+        self.ticker_source_combo.currentIndexChanged.connect(self.on_ticker_source_changed)
+        self.manage_tickers_button = QPushButton("Manage Custom List")
+        self.manage_tickers_button.setEnabled(False)
+        self.manage_tickers_button.clicked.connect(self.open_ticker_dialog)
 
         action_layout = QHBoxLayout()
         action_layout.addLayout(controls_layout)
-
         action_layout.addStretch()
 
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search by Name or Ticker...")
         self.search_bar.setMaximumWidth(300)
         self.search_bar.textChanged.connect(self.filter_results_table)
-        self.search_bar.setEnabled(False) # Initially disabled
+        self.search_bar.setEnabled(False)
         action_layout.addWidget(self.search_bar)
 
         self.settings_button = QPushButton("Settings")
@@ -416,12 +434,14 @@ class MainWindow(QMainWindow):
         action_layout.addWidget(self.settings_button)
         action_layout.addWidget(self.help_button)
 
-        self.scan_button.clicked.connect(self.start_scan)
-        self.manage_tickers_button.clicked.connect(self.open_ticker_dialog)
+        self.scan_button.clicked.connect(self.handle_scan_click)
         self.save_csv_button.clicked.connect(self.save_as_csv)
 
         controls_layout.addWidget(self.strategy_label); controls_layout.addWidget(self.strategy_combo)
-        controls_layout.addWidget(self.scan_button); controls_layout.addWidget(self.manage_tickers_button)
+        controls_layout.addWidget(self.ticker_source_label)
+        controls_layout.addWidget(self.ticker_source_combo)
+        controls_layout.addWidget(self.manage_tickers_button)
+        controls_layout.addWidget(self.scan_button)
         controls_layout.addWidget(self.save_csv_button)
 
         top_bar_layout.addLayout(action_layout)
@@ -482,15 +502,65 @@ class MainWindow(QMainWindow):
             self.current_tickers = dialog.get_tickers()
             self.statusBar().showMessage(f"Ticker list updated to {len(self.current_tickers)} tickers.", 5000)
 
+    def handle_scan_click(self):
+        if self.is_scanning:
+            self.stop_scan()
+        else:
+            self.start_scan()
+
+    def on_ticker_source_changed(self, index):
+        source = self.ticker_source_combo.itemText(index)
+        self.manage_tickers_button.setEnabled(source == "Custom List")
+
     def start_scan(self):
-        self.scan_button.setEnabled(False); self.save_csv_button.setEnabled(False); self.search_bar.setEnabled(False); self.search_bar.clear(); self.progress_bar.setValue(0); self.progress_bar.setVisible(True); self.results_table.setRowCount(0)
+        ticker_source = self.ticker_source_combo.currentText()
+
+        # --- Determine Tickers to Scan ---
+        if ticker_source == "Default List":
+            self.current_tickers = screener_engine.get_default_tickers()
+        elif ticker_source == "Custom List":
+            # self.current_tickers is already up-to-date from the dialog
+            pass
+        else: # It's an index
+            if not self.api_key:
+                QMessageBox.critical(self, "API Key Required", f"An FMP API key is required to fetch tickers from the {ticker_source} index.\n\nPlease add one in Settings.")
+                return
+
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            self.statusBar().showMessage(f"Fetching tickers for {ticker_source}...")
+            QApplication.processEvents() # Force UI update
+
+            new_tickers = screener_engine.get_tickers_from_index(ticker_source, self.api_key)
+
+            QApplication.restoreOverrideCursor()
+
+            if new_tickers is None:
+                QMessageBox.critical(self, "Error", f"Failed to fetch ticker list for {ticker_source}.\nThis might be a network issue or an invalid API key.")
+                self.statusBar().showMessage(f"Failed to fetch tickers for {ticker_source}.", 8000)
+                return
+            self.current_tickers = new_tickers
+
+        if not self.current_tickers:
+            QMessageBox.warning(self, "No Tickers", "The selected ticker list is empty.")
+            return
+
+        # --- Start the Scan ---
+        self.is_scanning = True
+        self.scan_button.setText("Stop Scan")
+        self.save_csv_button.setEnabled(False); self.search_bar.setEnabled(False); self.search_bar.clear(); self.progress_bar.setValue(0); self.progress_bar.setVisible(True); self.results_table.setRowCount(0)
         self.search_col_indices = None # Reset cached column indices
         data_source = "FMP" if self.api_key else "yfinance"
-        self.statusBar().showMessage(f"Starting scan for {len(self.current_tickers)} tickers using {data_source}...")
+        self.statusBar().showMessage(f"Starting scan for {len(self.current_tickers)} tickers ({ticker_source}) using {data_source}...")
         self.worker = ScanWorker(self.strategy_combo.currentText().replace(" ", "_"), self.current_tickers, self.api_key)
         self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.scan_finished)
         self.worker.start()
+
+    def stop_scan(self):
+        if self.worker and self.worker.isRunning():
+            self.worker.stop()
+            self.statusBar().showMessage("Stopping scan...")
+            self.scan_button.setEnabled(False) # Prevent multiple clicks
 
     def update_progress(self, progress_data):
         count, total, ticker = progress_data
@@ -499,7 +569,17 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Scanning ({count}/{total}): {ticker}...")
 
     def scan_finished(self, results):
-        self.progress_bar.setVisible(False); self.scan_button.setEnabled(True)
+        was_stopped = self.worker.is_stopped() if self.worker else False
+        self.is_scanning = False
+        self.scan_button.setText("Start Scan")
+        self.scan_button.setEnabled(True)
+        self.progress_bar.setVisible(False)
+        self.worker = None
+
+        if was_stopped:
+            self.statusBar().showMessage("Scan stopped by user.", 10000)
+            return
+
         if not results:
              self.statusBar().showMessage("Scan failed: No results returned.", 10000)
              return
