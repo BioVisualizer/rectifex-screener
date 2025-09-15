@@ -21,6 +21,14 @@ Rectifex ist ein Werkzeug für die **relative Analyse**. Es beantwortet die Frag
 
 ---
 
+## Funktionen
+
+*   **Integrierte Chart-Analyse:** Doppelklicken Sie auf eine beliebige Aktie in der Ergebnistabelle, um ein detailliertes technisches Analyse-Chart zu öffnen. Dieses Diagramm hilft Ihnen bei der Einschätzung, nicht nur *was* unterbewertet ist, sondern auch *wann* ein Einstiegszeitpunkt günstig sein könnte, indem es Kursbewegungen (Candlesticks), wichtige Trends (50- & 200-Tage-SMAs) und Momentum-Indikatoren (RSI & MACD) anzeigt.
+*   **Multi-Strategie-Analyse:** Wählen Sie aus vordefinierten Strategien, um die Ergebnisse nach Ihrem Fokus zu sortieren.
+*   **Daten-Export:** Speichern Sie die vollständige Analyse als `.csv`-Datei.
+
+---
+
 ## Wichtiger Hinweis: Grenzen der Analyse
 
 Rectifex berechnet **keinen "fairen Wert"** für eine Aktie. Die Scores basieren ausschließlich auf historischen, quantitativen Daten.
@@ -68,6 +76,14 @@ An open-source stock analysis tool for Linux that uses fundamental company data 
 ## What is Rectifex?
 
 Rectifex is a tool for **relative analysis**. It answers the question: *"Which companies, compared to all others in the analysis universe, are currently the most attractive based on my chosen strategy?"* This answer is always up-to-date as it is based on the current stock price.
+
+---
+
+## Features
+
+*   **Integrated Chart Analysis:** Double-click any stock in the results table to open a detailed technical analysis chart. This chart helps you assess not just *what* is undervalued, but also *when* an entry point might be opportune by showing price action (Candlesticks), key trends (50 & 200-day SMAs), and momentum indicators (RSI & MACD).
+*   **Multi-Strategy Analysis:** Choose from predefined strategies to sort results based on your focus.
+*   **Data Export:** Save the complete analysis as a `.csv` file.
 
 ---
 
