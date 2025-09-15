@@ -14,6 +14,7 @@ Rectifex is a tool for **relative analysis**. It answers the question: *"Which c
 
 ## Features
 
+*   **Integrated Chart Analysis:** Go from screening to analysis in a single click. Every stock now features an integrated technical chart, showing price action (Candlesticks), key trends (50 & 200-day SMAs), and momentum indicators (RSI & MACD) to help you assess not just *what* is undervalued, but also *when* an entry point might be opportune.
 *   **Multi-Strategy Analysis:** Choose from four predefined strategies (`Balanced`, `High Growth`, `Deep Value`, `Quality Dividend`) to sort the results based on your focus.
 *   **Global Stock Universe:** Analyzes a curated list of nearly 200 leading companies from North America, Europe, and Asia.
 *   **6-Factor Model:** Every stock is evaluated across six fundamental dimensions based on proven financial metrics.
