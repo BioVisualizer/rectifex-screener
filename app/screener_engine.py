@@ -304,10 +304,14 @@ def run_complete_screener(strategy, tickers, api_key, progress_callback):
         for score, weight in weights.items():
             if score in df.columns:
                 score_sum += df[score].fillna(50) * weight
-        df[strat_name] = score_sum
 
+        column_name = strat_name.replace(" ", "_")
+        df[column_name] = score_sum
+
+    # Create a set of strategy names with underscores for quick lookup
+    strategy_column_names = {s.replace(" ", "_") for s in strategy_definitions.keys()}
     for col in df.columns:
-        if '_Score' in col or col in strategy_definitions: df[col] = df[col].round(1)
+        if '_Score' in col or col in strategy_column_names: df[col] = df[col].round(1)
 
     display_columns = ['Name','Ticker','Country','Sector',strategy,'Quality_Score','Value_Score','Growth_Score','Momentum_Score','Yield_Score','Safety_Score','MarketCapUSD','PE','PB','ROE_Avg3Y','RevGrowth3YCAGR','DivYield']
     final_df = df.sort_values(by=strategy, ascending=False)
