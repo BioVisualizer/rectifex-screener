@@ -22,6 +22,10 @@ from PySide6.QtGui import QAction, QColor, QBrush
 import screener_engine
 from help_texts import HELP_TEXT_DE, HELP_TEXT_EN
 import copy
+import technical_analyzer
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
 
 # --- Configuration Handling ---
 CONFIG_DIR = Path.home() / ".config" / "rectifex"
@@ -68,6 +72,21 @@ class SettingsDialog(QDialog):
     def accept(self):
         save_api_key(self.api_key_input.text())
         super().accept()
+
+class ChartDialog(QDialog):
+    """A dialog to display a Matplotlib chart."""
+    def __init__(self, fig: Figure, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Technical Analysis Chart")
+        self.setMinimumSize(900, 700) # Adjusted size
+        self.setModal(False) # Allow interacting with main window
+
+        layout = QVBoxLayout()
+        canvas = FigureCanvas(fig)
+        canvas.setParent(self)
+        layout.addWidget(canvas)
+
+        self.setLayout(layout)
 
 class ScanWorker(QThread):
     progress = Signal(int); finished = Signal(object)
@@ -358,6 +377,7 @@ class MainWindow(QMainWindow):
         self.current_tickers = screener_engine.get_global_top_tickers()
         self.scan_errors = []
         self.api_key = load_api_key()
+        self.chart_cache = {}
 
         main_layout = QVBoxLayout(); top_bar_layout = QHBoxLayout(); controls_layout = QHBoxLayout()
         self.strategy_label = QLabel("Analysis Strategy:")
@@ -393,6 +413,8 @@ class MainWindow(QMainWindow):
         top_bar_layout.addLayout(action_layout)
         self.progress_bar = QProgressBar(); self.progress_bar.setVisible(False)
         self.results_table = QTableWidget(); self.results_table.setEditTriggers(QTableWidget.NoEditTriggers); self.results_table.setSortingEnabled(True); self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.results_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.results_table.cellDoubleClicked.connect(self.show_chart_for_ticker)
         self.results_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.results_table.customContextMenuRequested.connect(self.show_context_menu)
         main_layout.addLayout(top_bar_layout); main_layout.addWidget(self.progress_bar); main_layout.addWidget(self.results_table)
@@ -511,6 +533,45 @@ class MainWindow(QMainWindow):
                 self.results_table.setItem(r_idx, c_idx, item)
 
         self.results_table.resizeColumnsToContents(); self.results_table.setSortingEnabled(True)
+
+    def show_chart_for_ticker(self, row, column):
+        """Handles the double-click event on the table to show a chart."""
+        if self.result_df is None or row >= len(self.result_df):
+            return
+
+        try:
+            # Find the 'Ticker' column index and get the ticker symbol
+            header_labels = [self.results_table.horizontalHeaderItem(i).text() for i in range(self.results_table.columnCount())]
+            ticker_col_idx = header_labels.index("Ticker")
+            ticker = self.results_table.item(row, ticker_col_idx).text()
+        except (ValueError, AttributeError):
+            self.statusBar().showMessage("Could not find 'Ticker' column or row.", 5000)
+            return
+
+        self.statusBar().showMessage(f"Loading chart for {ticker}...", 2000)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+
+        try:
+            if ticker in self.chart_cache:
+                fig = self.chart_cache[ticker]
+                self.statusBar().showMessage(f"Showing cached chart for {ticker}.", 5000)
+            else:
+                fig = technical_analyzer.generate_analysis_figure(ticker)
+                if fig:
+                    self.chart_cache[ticker] = fig
+                    self.statusBar().showMessage(f"Successfully loaded chart for {ticker}.", 5000)
+                else:
+                    self.statusBar().showMessage(f"Failed to generate chart for {ticker}.", 8000)
+                    QMessageBox.warning(self, "Chart Error", f"Could not generate the technical analysis chart for {ticker}.")
+                    return
+
+            # Create and show the chart dialog
+            dialog = ChartDialog(fig, self)
+            dialog.show() # Use show() for non-modal dialog
+
+        finally:
+            QApplication.restoreOverrideCursor()
+
 
     def show_context_menu(self, pos):
         if self.results_table.rowCount() == 0: return

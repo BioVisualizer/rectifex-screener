@@ -104,4 +104,6 @@ For example, a high `Value_Score` only means that a stock is *quantitatively* ch
 ## Disclaimer
 
 This program is for educational and informational purposes only. The results **do not constitute investment advice or a recommendation to buy or sell.** All data is sourced from third-party APIs (`yfinance`) and may contain errors. Any investment decision based on this data is made solely at your own risk. **Never make an investment decision based on this app alone.**
+
+The inclusion of technical charts and indicators is for educational and informational purposes only and serves to provide additional context to the fundamental data. These tools do not constitute investment advice or a recommendation to buy or sell. Price trends and indicator signals may be misleading, and past performance is not indicative of future results. Any investment decision based on the combination of fundamental and technical data presented in this application is made solely at your own risk.
 """
