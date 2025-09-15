@@ -61,7 +61,7 @@ def save_strategy_definitions(strategies):
     with open(STRATEGIES_FILE, 'w') as f:
         json.dump(strategies, f, indent=4)
 
-def get_global_top_tickers():
+def get_default_tickers():
     # This list is a combination of the original tickers and a sample of new tickers from major indices.
     tickers = [
         "0001.HK", "0002.HK", "0003.HK", "0005.HK", "0011.HK", "0012.HK", "0016.HK", "0017.HK", "005380.KS",
@@ -133,6 +133,49 @@ def get_global_top_tickers():
         "ZM", "ZS", "ZTS", "ZURN.SW"
     ]
     return sorted(list(set(tickers)))
+
+def get_tickers_from_index(index_name, api_key):
+    """
+    Fetches the list of tickers for a given index from the FMP API.
+    Returns a list of tickers or None if an error occurs.
+    """
+    if not api_key:
+        logging.error("API key is required to fetch index constituents.")
+        return None
+
+    index_map = {
+        "S&P 500": "sp500-constituent",
+        "Nasdaq 100": "nasdaq-constituent",
+        "Dow Jones": "dowjones-constituent"
+    }
+
+    endpoint = index_map.get(index_name)
+    if not endpoint:
+        logging.error(f"Invalid index name specified: {index_name}")
+        return None
+
+    url = f"https://financialmodelingprep.com/api/v3/{endpoint}?apikey={api_key}"
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        data = response.json()
+
+        # The response is a list of dictionaries, each with a 'symbol' key.
+        tickers = [item['symbol'] for item in data]
+        logging.info(f"Successfully fetched {len(tickers)} tickers for {index_name}.")
+        return sorted(list(set(tickers)))
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"API request failed for {index_name}: {e}")
+        return None
+    except json.JSONDecodeError:
+        logging.error(f"Failed to decode JSON response for {index_name}.")
+        return None
+    except KeyError:
+        logging.error(f"Unexpected JSON structure in response for {index_name}.")
+        return None
+
 
 def safe_float(value, default=np.nan):
     try: return float(value) if pd.notna(value) else default
@@ -237,7 +280,7 @@ def calculate_metrics_yfinance(ticker_symbol):
         return metrics
     except Exception as e: return None
 
-def run_complete_screener(strategy, tickers, api_key, progress_callback):
+def run_complete_screener(strategy, tickers, api_key, progress_callback, worker=None):
     all_tickers = tickers; total_tickers = len(all_tickers); results = []; failed_list = []
 
     use_fmp = api_key is not None and len(api_key) > 10
@@ -250,6 +293,16 @@ def run_complete_screener(strategy, tickers, api_key, progress_callback):
             future_to_ticker = {executor.submit(fetch_function, ticker): ticker for ticker in all_tickers}
 
         for i, future in enumerate(as_completed(future_to_ticker)):
+            if worker and worker.is_stopped():
+                # Cancel all pending futures
+                for f in future_to_ticker:
+                    f.cancel()
+                # We need to drain the futures to avoid issues, but with a timeout
+                for f in as_completed(future_to_ticker, timeout=0.5):
+                    pass
+                logging.info("Scan stopped by user.")
+                return None # Indicate that the scan was stopped
+
             ticker = future_to_ticker[future]
             progress_callback.emit((i + 1, total_tickers, ticker))
             try:
@@ -264,6 +317,9 @@ def run_complete_screener(strategy, tickers, api_key, progress_callback):
             except Exception as e:
                 failed_list.append(f"{ticker}: Data request failed ({type(e).__name__}).")
                 logging.warning(f"Ticker {ticker} caused an exception: {e}")
+
+    if worker and worker.is_stopped():
+        return None
 
     if not results:
         summary = { "total_tickers": total_tickers, "initial_count": 0, "failed_count": len(failed_list), "final_count": 0, "failed_list": failed_list }
