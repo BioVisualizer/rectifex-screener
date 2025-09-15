@@ -378,6 +378,7 @@ class MainWindow(QMainWindow):
         self.scan_errors = []
         self.api_key = load_api_key()
         self.chart_cache = {}
+        self.search_col_indices = None # To cache search column indices
 
         main_layout = QVBoxLayout(); top_bar_layout = QHBoxLayout(); controls_layout = QHBoxLayout()
         self.strategy_label = QLabel("Analysis Strategy:")
@@ -393,7 +394,15 @@ class MainWindow(QMainWindow):
 
         action_layout = QHBoxLayout()
         action_layout.addLayout(controls_layout)
+
         action_layout.addStretch()
+
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Search by Name or Ticker...")
+        self.search_bar.setMaximumWidth(300)
+        self.search_bar.textChanged.connect(self.filter_results_table)
+        self.search_bar.setEnabled(False) # Initially disabled
+        action_layout.addWidget(self.search_bar)
 
         self.settings_button = QPushButton("Settings")
         self.help_button = QPushButton("Help")
@@ -469,7 +478,8 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Ticker list updated to {len(self.current_tickers)} tickers.", 5000)
 
     def start_scan(self):
-        self.scan_button.setEnabled(False); self.save_csv_button.setEnabled(False); self.progress_bar.setValue(0); self.progress_bar.setVisible(True); self.results_table.setRowCount(0)
+        self.scan_button.setEnabled(False); self.save_csv_button.setEnabled(False); self.search_bar.setEnabled(False); self.search_bar.clear(); self.progress_bar.setValue(0); self.progress_bar.setVisible(True); self.results_table.setRowCount(0)
+        self.search_col_indices = None # Reset cached column indices
         data_source = "FMP" if self.api_key else "yfinance"
         self.statusBar().showMessage(f"Starting scan for {len(self.current_tickers)} tickers using {data_source}...")
         self.worker = ScanWorker(self.strategy_combo.currentText().replace(" ", "_"), self.current_tickers, self.api_key)
@@ -494,6 +504,7 @@ class MainWindow(QMainWindow):
         if df.empty: return
         self.result_df = df
         self.save_csv_button.setEnabled(True)
+        self.search_bar.setEnabled(True)
         self.populate_table(df)
 
     def populate_table(self, df):
@@ -572,6 +583,39 @@ class MainWindow(QMainWindow):
         finally:
             QApplication.restoreOverrideCursor()
 
+
+    def filter_results_table(self, text):
+        """Filters the results table based on the search text."""
+        search_text = text.lower()
+
+        # Find and cache the column indices for 'Name' and 'Ticker' if not already done
+        if self.search_col_indices is None:
+            try:
+                header_labels = [self.results_table.horizontalHeaderItem(i).text() for i in range(self.results_table.columnCount())]
+                name_col = header_labels.index("Name")
+                ticker_col = header_labels.index("Ticker")
+                self.search_col_indices = {'Name': name_col, 'Ticker': ticker_col}
+            except (ValueError, AttributeError):
+                # This can happen if the table is empty or headers are not set
+                self.search_col_indices = {} # Avoid re-trying by setting to empty dict
+                return
+
+        if not self.search_col_indices:
+            return # Cannot search if columns are not found
+
+        name_col = self.search_col_indices['Name']
+        ticker_col = self.search_col_indices['Ticker']
+
+        for row in range(self.results_table.rowCount()):
+            name_item = self.results_table.item(row, name_col)
+            ticker_item = self.results_table.item(row, ticker_col)
+
+            # Ensure items exist before accessing their text
+            name_text = name_item.text().lower() if name_item else ""
+            ticker_text = ticker_item.text().lower() if ticker_item else ""
+
+            match = search_text in name_text or search_text in ticker_text
+            self.results_table.setRowHidden(row, not match)
 
     def show_context_menu(self, pos):
         if self.results_table.rowCount() == 0: return
