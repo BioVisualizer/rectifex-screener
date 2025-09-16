@@ -213,7 +213,9 @@ def calculate_metrics_yfinance(ticker_symbol):
                 liabilities = safe_float(balance_sheet.loc['Total Liab'].iloc[0]); equity = safe_float(balance_sheet.loc['Stockholders Equity'].iloc[0])
                 if pd.notna(liabilities) and pd.notna(equity) and equity > 0: metrics['DebtEquity'] = liabilities / equity
         return metrics
-    except Exception as e: return None
+    except Exception as e:
+        logging.warning(f"yfinance failed for {ticker_symbol}: {e}")
+        return None
 
 def run_complete_screener(strategy, tickers, api_key, progress_callback, worker=None):
     all_tickers = tickers; total_tickers = len(all_tickers); results = []; failed_list = []
