@@ -1,14 +1,14 @@
-import yfinance as yf
+import requests
 import pandas as pd
 import numpy as np
 import logging
-import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import configparser
 from pathlib import Path
 import os
 import time
 import json
+import ticker_fetcher
 
 # --- Global Configuration ---
 APPROX_RATES = {
@@ -61,78 +61,13 @@ def save_strategy_definitions(strategies):
     with open(STRATEGIES_FILE, 'w') as f:
         json.dump(strategies, f, indent=4)
 
-def get_default_tickers():
-    # This list is a combination of the original tickers and a sample of new tickers from major indices.
-    tickers = [
-        "0001.HK", "0002.HK", "0003.HK", "0005.HK", "0011.HK", "0012.HK", "0016.HK", "0017.HK", "005380.KS",
-        "005490.KS", "005930.KS", "0066.HK", "00660.KS", "0267.HK", "035420.KS", "0386.HK", "0388.HK",
-        "051910.KS", "068270.KS", "0700.HK", "0857.HK", "0883.HK", "0939.HK", "0941.HK", "1044.HK", "1299.HK",
-        "1721.T", "1801.T", "1802.T", "1803.T", "1808.T", "1812.T", "1925.T", "1928.T", "1963.T", "1COV.DE",
-        "207940.KS", "2303.TW", "2308.TW", "2317.TW", "2318.HK", "2330.TW", "2382.TW", "2412.TW", "2454.TW",
-        "2628.HK", "2881.TW", "2882.TW", "3405.T", "3407.T", "3988.HK", "4004.T", "4005.T", "4021.T", "4042.T",
-        "4043.T", "4061.T", "4063.T", "4183.T", "4188.T", "4208.T", "4452.T", "4631.T", "4901.T", "4911.T",
-        "5831.T", "6752.T", "6758.T", "6988.T", "7186.T", "7201.T", "7202.T", "7203.T", "7205.T", "7211.T",
-        "7261.T", "7267.T", "7269.T", "7270.T", "7272.T", "7974.T", "8031.T", "8058.T", "8304.T", "8306.T",
-        "8308.T", "8309.T", "8316.T", "8331.T", "8354.T", "8411.T", "9202.T", "9432.T", "9433.T", "9434.T",
-        "9613.T", "9983.T", "9984.T", "9988.HK", "A", "AAL", "AAL.L", "AAP", "AAPL", "ABBN.SW", "ABBV", "ABEV",
-        "ABI.BR", "ABNB", "ABT", "AC.PA", "ACA.PA", "ACN", "AD.AS", "ADANIENT.NS", "ADBE", "ADI", "ADP",
-        "ADS.DE", "ADYEN.AS", "AENA.MC", "AEP", "AFRM", "AGN.AS", "AI.PA", "AIG", "AIR.DE", "AIR.PA", "AKAM",
-        "ALL.AX", "ALO.PA", "ALV.DE", "AMAT", "AMC.AX", "AMD", "AMGN", "AMP.AX", "AMT", "AMZN", "ANSS",
-        "ANTO.L", "ANZ.AX", "AON", "APA", "APA.AX", "APD", "APH", "APT.AX", "ARW", "ASIANPAINT.NS", "ASML.AS",
-        "ASRNL.AS", "ASX.AX", "ATD.TO", "ATO.PA", "AV.L", "AVB", "AVGO", "AVY", "AWK", "AXISBANK.NS", "AXP",
-        "AZN", "AZN.L", "BA", "BA.L", "BABA", "BAC", "BAFN.SW", "BAJFINANCE.NS", "BAS.DE", "BATS.L", "BAX",
-        "BAYN.DE", "BBDC4.SA", "BBY", "BCE", "BDX", "BEI.DE", "BEN", "BHARTIARTL.NS", "BHP.AX", "BILL", "BK",
-        "BKNG", "BLK", "BMO", "BMW.DE", "BMY", "BNP.PA", "BNS", "BNS.TO", "BP", "BP.L", "BRK-A", "BRK-B",
-        "BT-A.L", "BXB.AX", "C", "CA.PA", "CABK.MC", "CAP.PA", "CARR", "CAT", "CBA.AX", "CCH.L", "CDNS", "CE",
-        "CFR.SW", "CHTR", "CI", "CL", "CLNX.MC", "CM.TO", "CME", "CMG", "CMI", "CMCSA", "CNP", "CNQ", "CNR.TO",
-        "COF", "COIN", "COL.AX", "CON.DE", "COO", "COP", "COST", "CP.TO", "CPG.L", "CPRT", "CPT", "CRM", "CRWD",
-        "CS.PA", "CSCO", "CSGN.SW", "CSL.AX", "CSU.TO", "CSX", "CTAS", "CTSH", "CVS", "CVX", "D", "DAI.DE",
-        "DAL", "DASH", "DB1.DE", "DBK.DE", "DD", "DDOG", "DE", "DFS", "DG", "DGX", "DHER.DE", "DHI", "DHR",
-        "DHL.DE", "DIS", "DLR", "DLTR", "DOV", "DOW", "DPW.DE", "DSM.AS", "DTE.DE", "DTG.DE", "DUK", "DVN",
-        "DXCM", "EA", "EBAY", "EIX", "EL", "EMN", "EN.PA", "ENB", "ENB.TO", "ENEL.MI", "ENG.MC", "ENGI.PA",
-        "ENI.MI", "ENPH", "ENR.DE", "EOAN.DE", "EOG", "EQNR.OL", "EQR", "ERF.PA", "ES", "ESS", "ETN", "ETSY",
-        "EW", "EXC", "EXPD", "EXPE", "F", "FAST", "FDX", "FE", "FER.MC", "FFIV", "FIS", "FISV", "FITB", "FLG.MC",
-        "FLTR.L", "FME.DE", "FMG.AX", "FRE.DE", "FRES.L", "FSLR", "GD", "GE", "GGB", "GGBR4.SA", "GIB-A.TO",
-        "GILD", "GIS", "GIVN.SW", "GLE.PA", "GLW", "GM", "GMG.AX", "GOOGL", "GPN", "GRF.MC", "GRMN", "GS",
-        "GSK", "GSK.L", "GWW", "HAL", "HAS", "HBAN", "HCA", "HCLTECH.NS", "HD", "HDFCBANK.NS", "HEI.DE",
-        "HEIA.AS", "HEN3.DE", "HES", "HIK.L", "HINDUNILVR.NS", "HLT", "HNR1.DE", "HOLN.SW", "HON", "HRL",
-        "HSBC", "HSBC.L", "HST", "HUM", "IAG.AX", "IAG.L", "IBE.MC", "IBM", "ICE", "ICICIBANK.NS", "IDR.MC",
-        "IDXX", "IEX", "IFX.DE", "IHG.L", "III.L", "ILMN", "IMCD.AS", "IMO.TO", "IMP.L", "INF.L", "INFY.NS",
-        "INGA.AS", "INTC", "INTU", "IP", "IPG", "IQV", "IR", "IRM", "ISRG", "ISP.MI", "ITRK.L", "ITUB",
-        "ITUB4.SA", "ITW", "ITX.MC", "IVZ", "JCI", "JD.L", "JNJ", "JPM", "K", "KER.PA", "KEY", "KHC", "KIM",
-        "KMB", "KMI", "KO", "KOTAKBANK.NS", "KPN.AS", "KR", "L", "L.TO", "LAND.L", "LEG", "LGEN.L", "LH",
-        "LHX", "LIN", "LIN.DE", "LLC.AX", "LLOY.L", "LLY", "LMT", "LNT", "LOGN.SW", "LOW", "LR.PA", "LT.NS",
-        "LUV", "LVMH.PA", "LYB", "LYV", "M&M.NS", "MA", "MAP.MC", "MAR", "MARUTI.NS", "MAS", "MB.MI", "MBG.DE",
-        "MC.PA", "MCD", "MCHP", "MCK", "MCO", "MDB", "MDLZ", "MDT", "MEL.MC", "META", "MFC", "MG.TO", "ML.PA",
-        "MMC", "MMM", "MNG.L", "MNST", "MO", "MOS", "MPC", "MQG.AX", "MRK", "MRK.DE", "MRL.MC", "MRO",
-        "MRO.L", "MS", "MSCI", "MSFT", "MSI", "MTB", "MTD", "MTX.DE", "MU", "MUV2.DE", "NAB.AX", "NCLH",
-        "NCM.AX", "NDAQ", "NEE", "NEM", "NESN.SW", "NET", "NFLX", "NG.L", "NI", "NKE", "NN.AS", "NOC",
-        "NOVN.SW", "NOVO-B.CO", "NOW", "NRG", "NSC", "NST.AX", "NTAP", "NTGY.MC", "NTR.TO", "NTRS", "NVR",
-        "NWG.L", "NWL", "NWSA", "O", "OCADO.L", "OKE", "OKTA", "OR.PA", "ORA.PA", "ORCL", "OXY", "P911.DE",
-        "PAH3.DE", "PANW", "PART.SW", "PATH", "PAYC", "PAYX", "PBR", "PCAR", "PDD", "PEG", "PEP", "PETR4.SA",
-        "PFE", "PFG", "PG", "PGR", "PH", "PHIA.AS", "PHM", "PHNX.L", "PINS", "PKG", "PLD", "PLTR", "PM",
-        "PNC", "PNR", "PNW", "POOL", "PPG", "PPL", "PRU", "PRU.L", "PRX.AS", "PSA", "PSN.L", "PSON.L", "PSX",
-        "PUB.PA", "PUM.DE", "PVH", "PWR", "PXD", "PYPL", "QAN.AX", "QBE.AX", "QCOM", "QIA.DE", "QRVO",
-        "RACE.MI", "RAND.AS", "RBLX", "RCL", "REG", "REGN", "RELIANCE.NS", "REN.AS", "REP.MC", "RF", "RHM.DE",
-        "RHI", "RI.PA", "RIO.AX", "RIO.L", "RL", "RMD", "RNO.PA", "ROG.SW", "ROK", "ROKU", "ROL", "ROP",
-        "ROST", "RR.L", "RSG", "RTO.L", "RTX", "RWE.DE", "RY", "RY.TO", "SAF.PA", "SAN.MC", "SAN.PA", "SAP",
-        "SAP.DE", "SBAC", "SBIN.NS", "SBRY.L", "SBUX", "SCCO", "SCG.AX", "SCHW", "SCMN.SW", "SEDG", "SEE",
-        "SGE.L", "SGO.PA", "SGP.AX", "SGSN.SW", "SHEL", "SHEL.L", "SHELL.AS", "SHL.DE", "SHOP.TO", "SHW",
-        "SIE.DE", "SJM", "SLB", "SLF.TO", "SLHN.SW", "SMIN.L", "SMT.L", "SNA", "SN.L", "SNOW", "SO", "SOFI",
-        "SPOT", "SPG", "SPGI", "SQ", "SRE", "SREN.SW", "SRT3.DE", "SSE.L", "STAN.L", "STE", "STLA", "STM.MI",
-        "STO.AX", "STT", "STX", "STZ", "SU", "SU.PA", "SU.TO", "SUN.AX", "SUNPHARMA.NS", "SWK", "SWKS",
-        "SY1.DE", "SYK", "T", "T.TO", "TAP", "TATASTEEL.NS", "TCL.AX", "TCS.NS", "TD", "TD.TO", "TDG", "TE.PA",
-        "TEF.MC", "TEL", "TEN.MI", "TFC", "TFX", "TGT", "TITAN.NS", "TJX", "TLS.AX", "TMO", "TMUS", "TRMB",
-        "TRP", "TRP.TO", "TRV", "TSCO", "TSCO.L", "TSLA", "TSN", "TT", "TTD", "TTE", "TTE.PA", "TWLO", "TXT",
-        "U", "UAL", "UBSG.SW", "UCG.MI", "UDR", "UGI", "UHR.SW", "UL", "ULVR.L", "UMG.AS", "UMG.PA", "UMPQ",
-        "UNA.AS", "UNH", "UNP", "UPS", "UPST", "URI", "USB", "V", "VALE", "VALE3.SA", "VFC", "VICI", "VIE.PA",
-        "VIV.PA", "VLO", "VMC", "VNA.DE", "VNO", "VOD.L", "VOLV-B.ST", "VOW3.DE", "VRSK", "VRSN", "VRTX",
-        "VTR", "VZ", "WBA", "WBC.AX", "WBD", "WCN.TO", "WDC", "WDAY", "WDS.AX", "WEC", "WEGE3.SA", "WELL",
-        "WES.AX", "WFC", "WHR", "WIPRO.NS", "WKL.AS", "WM", "WMB", "WMT", "WOW.AX", "WPM", "WRB", "WRK",
-        "WST", "WTB.L", "WY", "WYNN", "XEL", "XOM", "XRX", "XYL", "YUM", "ZAL.DE", "ZBH", "ZBRA", "ZION",
-        "ZM", "ZS", "ZTS", "ZURN.SW"
-    ]
-    return sorted(list(set(tickers)))
+def get_default_tickers(force_refresh=False):
+    """
+    Returns a comprehensive list of tickers from multiple major indices,
+    fetched and cached by the ticker_fetcher module.
+    """
+    logging.info("Using ticker_fetcher to get default tickers.")
+    return ticker_fetcher.get_all_tickers(force_refresh=force_refresh)
 
 def get_tickers_from_index(index_name, api_key):
     """

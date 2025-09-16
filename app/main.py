@@ -20,6 +20,7 @@ from PySide6.QtCore import QThread, Signal, Qt
 from PySide6.QtGui import QAction, QColor, QBrush
 
 import screener_engine
+import ticker_fetcher
 from help_texts import HELP_TEXT_DE, HELP_TEXT_EN
 import copy
 import technical_analyzer
@@ -410,7 +411,10 @@ class MainWindow(QMainWindow):
         # --- Ticker Source Selection ---
         self.ticker_source_label = QLabel("Ticker Source:")
         self.ticker_source_combo = QComboBox()
-        self.ticker_source_combo.addItems(["Default List", "S&P 500", "Nasdaq 100", "Dow Jones", "Custom List"])
+        self.ticker_source_combo.addItems([
+            "Default List", "DAX", "MDAX", "SDAX", "TecDAX",
+            "S&P 500", "Nasdaq 100", "Dow Jones", "Custom List"
+        ])
         self.ticker_source_combo.currentIndexChanged.connect(self.on_ticker_source_changed)
         self.manage_tickers_button = QPushButton("Manage Custom List")
         self.manage_tickers_button.setEnabled(False)
@@ -514,34 +518,47 @@ class MainWindow(QMainWindow):
 
     def start_scan(self):
         ticker_source = self.ticker_source_combo.currentText()
+        self.current_tickers = []
+        new_tickers = None
 
-        # --- Determine Tickers to Scan ---
-        if ticker_source == "Default List":
-            self.current_tickers = screener_engine.get_default_tickers()
-        elif ticker_source == "Custom List":
-            # self.current_tickers is already up-to-date from the dialog
-            pass
-        else: # It's an index
-            if not self.api_key:
-                QMessageBox.critical(self, "API Key Required", f"An FMP API key is required to fetch tickers from the {ticker_source} index.\n\nPlease add one in Settings.")
-                return
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.statusBar().showMessage(f"Fetching tickers for {ticker_source}...")
+        QApplication.processEvents()
 
-            QApplication.setOverrideCursor(Qt.WaitCursor)
-            self.statusBar().showMessage(f"Fetching tickers for {ticker_source}...")
-            QApplication.processEvents() # Force UI update
+        try:
+            if ticker_source == "Default List":
+                new_tickers = screener_engine.get_default_tickers()
+            elif ticker_source == "Custom List":
+                # No fetch needed, current_tickers is managed by dialog
+                new_tickers = self.current_tickers
+            elif ticker_source == "DAX":
+                new_tickers = ticker_fetcher.get_dax_tickers()
+            elif ticker_source == "MDAX":
+                new_tickers = ticker_fetcher.get_mdax_tickers()
+            elif ticker_source == "SDAX":
+                new_tickers = ticker_fetcher.get_sdax_tickers()
+            elif ticker_source == "TecDAX":
+                new_tickers = ticker_fetcher.get_tecdax_tickers()
+            else: # US Indices that require an API key
+                if not self.api_key:
+                    QMessageBox.critical(self, "API Key Required", f"An FMP API key is required to fetch tickers from the {ticker_source} index.\n\nPlease add one in Settings.")
+                    new_tickers = None # Ensure we don't proceed
+                else:
+                    new_tickers = screener_engine.get_tickers_from_index(ticker_source, self.api_key)
 
-            new_tickers = screener_engine.get_tickers_from_index(ticker_source, self.api_key)
+            if new_tickers is None and ticker_source not in ["Custom List"]:
+                 QMessageBox.critical(self, "Error", f"Failed to fetch ticker list for {ticker_source}.\nThis might be a network issue or an invalid API key.")
+                 self.statusBar().showMessage(f"Failed to fetch tickers for {ticker_source}.", 8000)
+            else:
+                self.current_tickers = new_tickers
 
+        finally:
             QApplication.restoreOverrideCursor()
-
-            if new_tickers is None:
-                QMessageBox.critical(self, "Error", f"Failed to fetch ticker list for {ticker_source}.\nThis might be a network issue or an invalid API key.")
-                self.statusBar().showMessage(f"Failed to fetch tickers for {ticker_source}.", 8000)
-                return
-            self.current_tickers = new_tickers
+            self.statusBar().clearMessage()
 
         if not self.current_tickers:
-            QMessageBox.warning(self, "No Tickers", "The selected ticker list is empty.")
+            if ticker_source != "Custom List": # Avoid warning for an empty custom list on startup
+                QMessageBox.warning(self, "No Tickers", f"The ticker list for '{ticker_source}' is empty or could not be loaded.")
             return
 
         # --- Start the Scan ---
@@ -752,4 +769,6 @@ class MainWindow(QMainWindow):
             self.strategy_combo.setToolTip("<br>".join(tooltip_parts))
 
 if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     app = QApplication(sys.argv); app.setDesktopFileName("io.github.BioVisualizer.Rectifex"); window = MainWindow(); window.show(); sys.exit(app.exec())
