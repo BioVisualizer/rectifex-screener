@@ -210,6 +210,17 @@ class MainWindow(QMainWindow):
         self.scan_errors = summary.get('failed_list', [])
         status_msg = f"Scan finished. {summary.get('final_count', 0)} of {summary.get('total_tickers', 0)} stocks loaded. {summary.get('failed_count', 0)} tickers failed."
         self.statusBar().showMessage(status_msg, 10000)
+
+        # If all tickers failed, show a helpful message to the user.
+        if summary.get('final_count', 0) == 0 and summary.get('failed_count', 0) > 0:
+            error_preview = "\n".join(self.scan_errors[:3]) # Show first 3 errors
+            QMessageBox.warning(self, "Scan Completed with Errors",
+                                f"The scan finished, but all {summary.get('failed_count', 0)} tickers failed to load.\n\n"
+                                "This is often caused by an invalid or expired API key, or network connectivity issues.\n\n"
+                                f"Here are some of the errors:\n{error_preview}...\n\n"
+                                "Please check your API key in Settings or view the full log in the 'Help' menu.")
+            return
+
         if df.empty: return
         self.result_df = df
         self.save_csv_button.setEnabled(True)
