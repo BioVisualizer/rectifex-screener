@@ -9,6 +9,7 @@ import os
 import time
 import json
 import ticker_fetcher
+import yfinance as yf
 
 # --- Global Configuration ---
 CONFIG_DIR = Path.home() / ".config" / "rectifex"
@@ -219,12 +220,18 @@ def calculate_metrics_yfinance(ticker_symbol):
         return None
 
 def run_complete_screener(strategy, tickers, api_key, progress_callback, worker=None):
-    all_tickers = tickers; total_tickers = len(all_tickers); results = []; failed_list = []
+    all_tickers = tickers
+    total_tickers = len(all_tickers)
+    results = []
+    failed_list = []
 
+    # Determine which data source to use based on API key presence
     use_fmp = api_key is not None and len(api_key) > 10
     fetch_function = calculate_metrics_fmp if use_fmp else calculate_metrics_yfinance
+    logging.info(f"Starting scan with {'FMP API' if use_fmp else 'yfinance'}.")
 
     with ThreadPoolExecutor(max_workers=8) as executor:
+        # Submit jobs to the executor
         if use_fmp:
             future_to_ticker = {executor.submit(fetch_function, ticker, api_key): ticker for ticker in all_tickers}
         else:
