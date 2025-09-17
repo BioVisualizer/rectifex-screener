@@ -122,10 +122,19 @@ def calculate_metrics_fmp(ticker, api_key):
     try:
         metrics = {'Ticker': ticker}
 
+        # Helper to check for API errors from FMP which often come as a dict
+        def check_fmp_response(data, ticker_symbol):
+            if isinstance(data, dict) and 'Error Message' in data:
+                return {"error": f"{ticker_symbol}: {data['Error Message']}"}
+            if not data or (isinstance(data, list) and len(data) == 0):
+                return {"error": f"{ticker_symbol}: No data returned from FMP API."}
+            return None  # No error found
+
         # 1. Profile for basic info
         profile_url = f"https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={api_key}"
         profile_data = requests.get(profile_url, timeout=15).json()
-        if not profile_data: return {"error": f"{ticker}: Not found on FMP."}
+        error = check_fmp_response(profile_data, ticker)
+        if error: return error
         profile = profile_data[0]
 
         metrics['Name'] = profile.get('companyName', '')[:40]
@@ -137,7 +146,8 @@ def calculate_metrics_fmp(ticker, api_key):
         # 2. Ratios for PE, PB, DivYield, Debt/Equity
         ratios_url = f"https://financialmodelingprep.com/api/v3/ratios-ttm/{ticker}?apikey={api_key}"
         ratios_data = requests.get(ratios_url, timeout=15).json()
-        if not ratios_data: return {"error": f"{ticker}: Ratios not available."}
+        error = check_fmp_response(ratios_data, ticker)
+        if error: return error
         ratios = ratios_data[0]
 
         metrics['PE'] = ratios.get('priceEarningsRatioTTM')
@@ -148,9 +158,13 @@ def calculate_metrics_fmp(ticker, api_key):
         # 3. Financial statements for ROE and Revenue Growth
         financials_url = f"https://financialmodelingprep.com/api/v3/income-statement/{ticker}?period=annual&limit=4&apikey={api_key}"
         financials_data = requests.get(financials_url, timeout=15).json()
+        error = check_fmp_response(financials_data, ticker)
+        if error: return error
 
         balance_sheet_url = f"https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=annual&limit=4&apikey={api_key}"
         balance_data = requests.get(balance_sheet_url, timeout=15).json()
+        error = check_fmp_response(balance_data, ticker)
+        if error: return error
 
         if financials_data and len(financials_data) >= 3:
             rev_now = safe_float(financials_data[0].get('revenue'))
@@ -171,6 +185,11 @@ def calculate_metrics_fmp(ticker, api_key):
         # 4. Historical prices for Momentum and Volatility
         hist_url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?timeseries=252&apikey={api_key}"
         hist_data = requests.get(hist_url, timeout=15).json()
+
+        # Historical data has a different structure, it's a dict with a 'historical' key
+        if isinstance(hist_data, dict) and 'Error Message' in hist_data:
+             return {"error": f"{ticker}: {hist_data['Error Message']}"}
+
         if hist_data and 'historical' in hist_data and len(hist_data['historical']) >= 126:
             prices = pd.DataFrame(hist_data['historical'])['close']
             metrics['Momentum6M'] = ((prices.iloc[0] / prices.iloc[125]) - 1) * 100
