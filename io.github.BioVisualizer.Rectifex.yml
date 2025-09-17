@@ -28,7 +28,8 @@ modules:
   - name: stockscreener
     buildsystem: simple
     build-commands:
-      - install -D -t /app/bin/ main.py screener_engine.py help_texts.py technical_analyzer.py ticker_fetcher.py
+      - install -D -t /app/bin/ main.py screener_engine.py help_texts.py technical_analyzer.py ticker_fetcher.py scan_worker.py
+      - cp -r ui /app/bin/
       - install -D -t /app/share/licenses/io.github.BioVisualizer.Rectifex/ LICENSE
       - install -D -m 755 start.sh /app/bin/start.sh
       - install -D -t /app/share/applications/ share/applications/io.github.BioVisualizer.Rectifex.desktop
