@@ -11,14 +11,48 @@ import json
 import ticker_fetcher
 
 # --- Global Configuration ---
-APPROX_RATES = {
-    'EUR': 1.08, 'JPY': 0.0064, 'GBP': 1.27, 'CAD': 0.73, 'CHF': 1.12,
-    'AUD': 0.66, 'HKD': 0.13, 'BRL': 0.18, 'DKK': 0.14, 'SEK': 0.096,
-    'NOK': 0.094, 'INR': 0.012, 'KRW': 0.00072, 'CNY': 0.14, 'GBp': 0.0127
-}
-
 CONFIG_DIR = Path.home() / ".config" / "rectifex"
 STRATEGIES_FILE = CONFIG_DIR / "strategies.json"
+RATES_CACHE_FILE = CONFIG_DIR / "exchange_rates.json"
+
+def get_exchange_rates():
+    """
+    Fetches latest exchange rates from a public API and caches them.
+    The base currency is USD.
+    """
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Try to load from cache first
+    if RATES_CACHE_FILE.exists():
+        try:
+            with open(RATES_CACHE_FILE, 'r') as f:
+                cached_data = json.load(f)
+                cache_date = pd.to_datetime(cached_data.get('date'))
+                if pd.Timestamp.now() - cache_date < pd.Timedelta(days=1):
+                    logging.info("Loading exchange rates from cache.")
+                    return cached_data.get('rates', {})
+        except (json.JSONDecodeError, KeyError) as e:
+            logging.warning(f"Could not read exchange rate cache: {e}. Fetching new data.")
+
+    # Fetch from API if cache is old or invalid
+    logging.info("Fetching fresh exchange rates from API.")
+    try:
+        url = "https://api.frankfurter.app/latest?from=USD"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        rates = data.get('rates', {})
+        rates['USD'] = 1.0  # Add USD to the dictionary for completeness
+
+        # Save to cache
+        with open(RATES_CACHE_FILE, 'w') as f:
+            json.dump({'date': pd.Timestamp.now().isoformat(), 'rates': rates}, f)
+
+        return rates
+    except (requests.RequestException, json.JSONDecodeError) as e:
+        logging.error(f"Could not fetch or parse exchange rates: {e}. Returning empty dict.")
+        return {}
+
 
 def get_strategy_definitions():
     """
@@ -61,60 +95,27 @@ def save_strategy_definitions(strategies):
     with open(STRATEGIES_FILE, 'w') as f:
         json.dump(strategies, f, indent=4)
 
-def get_default_tickers(force_refresh=False):
+def get_default_tickers(api_key, force_refresh=False):
     """
     Returns a comprehensive list of tickers from multiple major indices,
     fetched and cached by the ticker_fetcher module.
     """
     logging.info("Using ticker_fetcher to get default tickers.")
-    return ticker_fetcher.get_all_tickers(force_refresh=force_refresh)
-
-def get_tickers_from_index(index_name, api_key):
-    """
-    Fetches the list of tickers for a given index from the FMP API.
-    Returns a list of tickers or None if an error occurs.
-    """
-    if not api_key:
-        logging.error("API key is required to fetch index constituents.")
-        return None
-
-    index_map = {
-        "S&P 500": "sp500-constituent",
-        "Nasdaq 100": "nasdaq-constituent",
-        "Dow Jones": "dowjones-constituent"
-    }
-
-    endpoint = index_map.get(index_name)
-    if not endpoint:
-        logging.error(f"Invalid index name specified: {index_name}")
-        return None
-
-    url = f"https://financialmodelingprep.com/api/v3/{endpoint}?apikey={api_key}"
-
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for bad status codes
-        data = response.json()
-
-        # The response is a list of dictionaries, each with a 'symbol' key.
-        tickers = [item['symbol'] for item in data]
-        logging.info(f"Successfully fetched {len(tickers)} tickers for {index_name}.")
-        return sorted(list(set(tickers)))
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"API request failed for {index_name}: {e}")
-        return None
-    except json.JSONDecodeError:
-        logging.error(f"Failed to decode JSON response for {index_name}.")
-        return None
-    except KeyError:
-        logging.error(f"Unexpected JSON structure in response for {index_name}.")
-        return None
-
+    return ticker_fetcher.get_all_tickers(api_key, force_refresh=force_refresh)
 
 def safe_float(value, default=np.nan):
     try: return float(value) if pd.notna(value) else default
     except (ValueError, TypeError): return default
+
+def convert_to_usd(row, exchange_rates):
+    """Converts a row's MarketCap to USD, handling special currency cases."""
+    cap = row['MarketCap']
+    currency = row['Currency']
+    # Handle GBp (pence) by converting to GBP before lookup
+    if currency == 'GBp':
+        cap = cap / 100.0
+        currency = 'GBP'
+    return cap * exchange_rates.get(currency, 1.0)
 
 def calculate_metrics_fmp(ticker, api_key):
     try:
@@ -122,7 +123,7 @@ def calculate_metrics_fmp(ticker, api_key):
 
         # 1. Profile for basic info
         profile_url = f"https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={api_key}"
-        profile_data = requests.get(profile_url).json()
+        profile_data = requests.get(profile_url, timeout=15).json()
         if not profile_data: return {"error": f"{ticker}: Not found on FMP."}
         profile = profile_data[0]
 
@@ -134,7 +135,7 @@ def calculate_metrics_fmp(ticker, api_key):
 
         # 2. Ratios for PE, PB, DivYield, Debt/Equity
         ratios_url = f"https://financialmodelingprep.com/api/v3/ratios-ttm/{ticker}?apikey={api_key}"
-        ratios_data = requests.get(ratios_url).json()
+        ratios_data = requests.get(ratios_url, timeout=15).json()
         if not ratios_data: return {"error": f"{ticker}: Ratios not available."}
         ratios = ratios_data[0]
 
@@ -145,10 +146,10 @@ def calculate_metrics_fmp(ticker, api_key):
 
         # 3. Financial statements for ROE and Revenue Growth
         financials_url = f"https://financialmodelingprep.com/api/v3/income-statement/{ticker}?period=annual&limit=4&apikey={api_key}"
-        financials_data = requests.get(financials_url).json()
+        financials_data = requests.get(financials_url, timeout=15).json()
 
         balance_sheet_url = f"https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=annual&limit=4&apikey={api_key}"
-        balance_data = requests.get(balance_sheet_url).json()
+        balance_data = requests.get(balance_sheet_url, timeout=15).json()
 
         if financials_data and len(financials_data) >= 3:
             rev_now = safe_float(financials_data[0].get('revenue'))
@@ -168,7 +169,7 @@ def calculate_metrics_fmp(ticker, api_key):
 
         # 4. Historical prices for Momentum and Volatility
         hist_url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?timeseries=252&apikey={api_key}"
-        hist_data = requests.get(hist_url).json()
+        hist_data = requests.get(hist_url, timeout=15).json()
         if hist_data and 'historical' in hist_data and len(hist_data['historical']) >= 126:
             prices = pd.DataFrame(hist_data['historical'])['close']
             metrics['Momentum6M'] = ((prices.iloc[0] / prices.iloc[125]) - 1) * 100
@@ -263,7 +264,11 @@ def run_complete_screener(strategy, tickers, api_key, progress_callback, worker=
         return (pd.DataFrame(), summary)
 
     df = pd.DataFrame(results); initial_count = len(df)
-    df['MarketCapUSD'] = df.apply(lambda row: row['MarketCap'] * APPROX_RATES.get(row['Currency'], 1.0) if row['Currency'] != 'USD' else row['MarketCap'], axis=1)
+    exchange_rates = get_exchange_rates()
+    if not exchange_rates:
+        logging.error("Could not obtain exchange rates. Market Cap conversion will be inaccurate.")
+
+    df['MarketCapUSD'] = df.apply(lambda row: convert_to_usd(row, exchange_rates), axis=1)
     df['NormalizedName'] = df['Name'].str.lower().str.replace(r' inc| corporation| corp| plc| se| sa| ag| ltd| limited| group| holdings| n\\.v\\.', '', regex=True).str.strip()
     df = df.sort_values('MarketCapUSD', ascending=False).drop_duplicates(subset=['NormalizedName'], keep='first')
     df = df[df['PE'].isnull() | (df['PE'] > 0)].copy(); final_count = len(df)

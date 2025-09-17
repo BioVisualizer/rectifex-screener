@@ -4,180 +4,123 @@ import json
 from pathlib import Path
 import datetime
 import logging
-import io
-import time
+import urllib.parse
 
 # --- Configuration ---
 CACHE_FILE = Path.home() / ".config" / "rectifex" / "tickers.json"
 CACHE_DURATION_DAYS = 7
 
-# Wikipedia URLs
-URL_DAX = "https://en.wikipedia.org/wiki/DAX"
-URL_MDAX = "https://en.wikipedia.org/wiki/MDAX"
-URL_TECDAX_DE = "https://de.wikipedia.org/wiki/TecDAX"
-URL_SDAX_DE = "https://de.wikipedia.org/wiki/SDAX"
-URL_NASDAQ100 = "https://en.wikipedia.org/wiki/Nasdaq-100"
-URL_SP500 = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+# --- FMP Index Mapping ---
+# Maps the user-facing name from the dropdown to the required FMP API symbol or list name
+INDEX_MAP = {
+    # US Indices (use list names)
+    "S&P 500": "sp500-constituent",
+    "Nasdaq 100": "nasdaq-constituent",
+    "Dow Jones": "dowjones-constituent",
+    # German Indices (use URL-encoded symbols)
+    "DAX": "%5EGDAXI",    # ^GDAXI
+    "MDAX": "%5EMDAXI",   # ^MDAXI
+    "SDAX": "%5ESDAXI",   # ^SDAXI
+    "TecDAX": "%5ETECDAX" # ^TECDAX
+}
+
+# List of indices to include in the "Default List"
+DEFAULT_INDICES = ["S&P 500", "Nasdaq 100", "DAX", "MDAX"]
 
 # --- Global Session ---
 session = requests.Session()
-session.headers.update({'User-Agent': 'RectifexStockScreener/1.0'})
+session.headers.update({'User-Agent': 'RectifexStockScreener/1.1'})
 
 
-def _fetch_html(url):
-    """Fetches HTML content from a URL."""
-    try:
-        response = session.get(url)
-        response.raise_for_status()
-        return response.text
-    except requests.RequestException as e:
-        logging.error(f"Failed to fetch HTML from {url}: {e}")
+def get_tickers_from_index(index_name: str, api_key: str):
+    """
+    Fetches the list of tickers for a given index from the FMP API.
+    Handles both list-based endpoints and symbol-based index endpoints.
+    Returns a list of tickers or None if an error occurs.
+    """
+    if not api_key:
+        logging.error("API key is required to fetch index constituents.")
         return None
 
-def get_sp500_tickers():
-    """Fetches S&P 500 tickers from Wikipedia."""
-    html = _fetch_html(URL_SP500)
-    if not html: return []
+    identifier = INDEX_MAP.get(index_name)
+    if not identifier:
+        logging.error(f"Invalid or unsupported index name specified: {index_name}")
+        return None
+
+    # Determine the correct API endpoint to use
+    if "-constituent" in identifier:
+        # It's a named list like "sp500-constituent"
+        url = f"https://financialmodelingprep.com/api/v3/{identifier}?apikey={api_key}"
+    else:
+        # It's a symbol like "%5EGDAXI"
+        url = f"https://financialmodelingprep.com/api/v3/index_constituent/{identifier}?apikey={api_key}"
+
     try:
-        tables = pd.read_html(io.StringIO(html))
-        sp500_table = tables[0]
-        return sp500_table['Symbol'].str.replace('.', '-', regex=False).tolist()
-    except Exception as e:
-        logging.error(f"Could not parse S&P 500 table: {e}")
-        return []
-
-def get_nasdaq100_tickers():
-    """Fetches Nasdaq 100 tickers from Wikipedia."""
-    html = _fetch_html(URL_NASDAQ100)
-    if not html: return []
-    try:
-        tables = pd.read_html(io.StringIO(html))
-        nasdaq_table = tables[4]
-        return nasdaq_table['Ticker'].tolist()
-    except Exception as e:
-        logging.error(f"Could not parse Nasdaq 100 table: {e}")
-        return []
-
-def get_dax_tickers():
-    """Fetches DAX tickers from Wikipedia."""
-    html = _fetch_html(URL_DAX)
-    if not html: return []
-    try:
-        tables = pd.read_html(io.StringIO(html))
-        dax_table = tables[4]
-        return dax_table['Ticker'].tolist()
-    except Exception as e:
-        logging.error(f"Could not parse DAX table: {e}")
-        return []
-
-def get_mdax_tickers():
-    """Fetches MDAX tickers from Wikipedia."""
-    html = _fetch_html(URL_MDAX)
-    if not html: return []
-    try:
-        tables = pd.read_html(io.StringIO(html))
-        mdax_table = tables[2]
-        tickers = mdax_table['Symbol'].dropna().tolist()
-        processed_tickers = []
-        for ticker in tickers:
-            if isinstance(ticker, str):
-                if not any(ticker.endswith(suffix) for suffix in ['.DE', '.LU', '.PA', '.AS']):
-                    processed_tickers.append(f"{ticker}.DE")
-                else:
-                    processed_tickers.append(ticker)
-        return processed_tickers
-    except Exception as e:
-        logging.error(f"Could not parse MDAX table: {e}")
-        return []
-
-def get_tecdax_tickers():
-    """Fetches TecDAX tickers by looking up company names."""
-    companies = get_companies_from_german_wiki(URL_TECDAX_DE)
-    tickers = set()
-    for company in companies:
-        ticker = _search_ticker_yahoo(company)
-        if ticker:
-            tickers.add(ticker)
-    return sorted(list(tickers))
-
-def get_sdax_tickers():
-    """Fetches SDAX tickers by looking up company names."""
-    companies = get_companies_from_german_wiki(URL_SDAX_DE)
-    tickers = set()
-    for company in companies:
-        ticker = _search_ticker_yahoo(company)
-        if ticker:
-            tickers.add(ticker)
-    return sorted(list(tickers))
-
-
-def get_companies_from_german_wiki(url):
-    """Fetches company names from a German Wikipedia index page."""
-    html = _fetch_html(url)
-    if not html: return []
-    try:
-        tables = pd.read_html(io.StringIO(html))
-        for table in tables:
-            if 'Name' in table.columns and 'Branche' in table.columns:
-                return table['Name'].str.replace(r'\[.*?\]', '', regex=True).str.strip().tolist()
-        logging.error(f"Could not find a valid company table in {url}")
-        return []
-    except Exception as e:
-        logging.error(f"Could not parse table from {url}: {e}")
-        return []
-
-def _search_ticker_yahoo(company_name):
-    """Searches Yahoo Finance for a ticker symbol for a given company name."""
-    search_url = f"https://query1.finance.yahoo.com/v1/finance/search"
-    params = {'q': company_name, 'quotesCount': 1, 'newsCount': 0}
-    try:
-        time.sleep(0.5)
-        response = session.get(search_url, params=params)
+        response = session.get(url, timeout=15)
         response.raise_for_status()
         data = response.json()
-        if data.get('quotes'):
-            ticker = data['quotes'][0]['symbol']
-            logging.info(f"Found ticker '{ticker}' for company '{company_name}'")
-            return ticker
-        else:
-            logging.warning(f"No ticker found for company '{company_name}' on Yahoo Finance.")
-            return None
-    except requests.RequestException as e:
-        logging.error(f"Yahoo Finance search failed for '{company_name}': {e}")
+
+        # The response is a list of dictionaries. For index constituents, the key is 'symbol'.
+        # For historical constituents (which some endpoints return), it's in a nested dict.
+        tickers = []
+        if data and isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict) and 'symbol' in item:
+                    tickers.append(item['symbol'])
+
+        if not tickers:
+            logging.warning(f"API returned no tickers for {index_name}. The response might be empty or in an unexpected format.")
+            return []
+
+        logging.info(f"Successfully fetched {len(tickers)} tickers for {index_name}.")
+        return sorted(list(set(tickers)))
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"API request failed for {index_name}: {e}")
         return None
-    except (json.JSONDecodeError, KeyError) as e:
-        logging.error(f"Could not parse Yahoo Finance response for '{company_name}': {e}")
+    except json.JSONDecodeError:
+        logging.error(f"Failed to decode JSON response for {index_name}.")
+        return None
+    except KeyError:
+        logging.error(f"Unexpected JSON structure in response for {index_name}.")
         return None
 
 
-def get_all_tickers(force_refresh=False):
+def get_all_tickers(api_key: str, force_refresh=False):
     """
-    Aggregates tickers from all sources, using a cache file.
+    Aggregates tickers from all default sources using the FMP API, with caching.
+    Requires an API key.
     """
     CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
+    if not api_key:
+        logging.error("API key is required to fetch the default ticker list.")
+        return []
+
+    # Check cache first
     if not force_refresh and CACHE_FILE.exists():
         try:
             with open(CACHE_FILE, 'r') as f:
                 data = json.load(f)
                 cache_date = datetime.datetime.fromisoformat(data['date'])
                 if datetime.datetime.now() - cache_date < datetime.timedelta(days=CACHE_DURATION_DAYS):
-                    logging.info("Loading tickers from cache.")
+                    logging.info("Loading default tickers from cache.")
                     return data['tickers']
-        except (json.JSONDecodeError, KeyError):
-             logging.warning("Cache file is invalid. Fetching fresh data.")
+        except (json.JSONDecodeError, KeyError, ValueError):
+             logging.warning("Ticker cache file is invalid or corrupt. Fetching fresh data.")
 
-
-    logging.info("Fetching fresh ticker data.")
+    logging.info("Fetching fresh default ticker data from FMP API.")
     all_tickers = set()
 
-    all_tickers.update(get_sp500_tickers())
-    all_tickers.update(get_nasdaq100_tickers())
-    all_tickers.update(get_dax_tickers())
-    all_tickers.update(get_mdax_tickers())
-    all_tickers.update(get_tecdax_tickers())
-    all_tickers.update(get_sdax_tickers())
+    for index_name in DEFAULT_INDICES:
+        logging.info(f"Fetching constituents for {index_name}...")
+        tickers = get_tickers_from_index(index_name, api_key)
+        if tickers:
+            all_tickers.update(tickers)
+        else:
+            logging.warning(f"Failed to get tickers for {index_name}, it will be excluded from the default list.")
 
+    # Add a small, static list of important/popular tickers to ensure they are included
     supplementary_tickers = ["NVDA", "PLTR", "GOOGL", "GOOG", "MSFT", "SRT3.DE", "SRT.DE", "HYQ.DE"]
     all_tickers.update(supplementary_tickers)
 
@@ -193,10 +136,19 @@ def get_all_tickers(force_refresh=False):
     return sorted_tickers
 
 if __name__ == '__main__':
+    # For standalone testing. Requires an API key in a file named 'fmp_api.key'
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    # tickers = get_all_tickers(force_refresh=True)
-    # print(f"\n---> Found {len(tickers)} unique tickers in total. <---")
-    print("DAX:", get_dax_tickers())
-    print("MDAX:", get_mdax_tickers())
-    print("TecDAX:", get_tecdax_tickers())
-    print("SDAX:", get_sdax_tickers())
+    try:
+        with open('fmp_api.key', 'r') as f:
+            test_api_key = f.read().strip()
+        print("--- Testing Ticker Fetcher ---")
+        dax_tickers = get_tickers_from_index("DAX", test_api_key)
+        print(f"DAX Tickers: {dax_tickers[:5]}... ({len(dax_tickers)} total)")
+
+        all_defaults = get_all_tickers(test_api_key, force_refresh=True)
+        print(f"Default Tickers: {all_defaults[:5]}... ({len(all_defaults)} total)")
+
+    except FileNotFoundError:
+        print("Could not find fmp_api.key file for testing. Skipping standalone test.")
+    except Exception as e:
+        print(f"An error occurred during testing: {e}")
