@@ -16,7 +16,7 @@ Rectifex is a tool for **relative analysis**. It answers the question: *"Which c
 
 *   **Integrated Chart Analysis:** Go from screening to analysis in a single click. Every stock now features an integrated technical chart, showing price action (Candlesticks), key trends (50 & 200-day SMAs), and momentum indicators (RSI & MACD) to help you assess not just *what* is undervalued, but also *when* an entry point might be opportune.
 *   **Multi-Strategy Analysis:** Choose from four predefined strategies (`Balanced`, `High Growth`, `Deep Value`, `Quality Dividend`) to sort the results based on your focus.
-*   **Global Stock Universe:** Analyzes leading companies from major global indices (S&P 500, Nasdaq 100, DAX, etc.) sourced reliably via the Financial Modeling Prep API.
+*   **Global Stock Universe:** Analyzes companies from major German indices by default. By adding a free, optional API key from Financial Modeling Prep (FMP), you can also analyze US indices (S&P 500, etc.) and benefit from a higher-quality data source.
 *   **6-Factor Model:** Every stock is evaluated across six fundamental dimensions based on proven financial metrics.
 *   **Data Export:** Save the complete analysis results as a `.csv` file with a single click for further processing in spreadsheets.
 *   **Interactive Results:** Sort the results table by clicking on any column header to arrange the data as you see fit.
@@ -54,14 +54,6 @@ For example, a high `Value_Score` only means that a stock is *quantitatively* ch
 
 ---
 
-## Requirements
-
-**IMPORTANT:** As of version 2.0, this application requires a **free API key** from [Financial Modeling Prep (FMP)](https://site.financialmodelingprep.com/register) to function.
-
-The free tier of the FMP API is sufficient. This change was made to replace unreliable data sources with a robust, professional API, significantly improving the quality and stability of the analysis.
-
-You can enter your API key in the application via the **Settings** menu.
-
 ## Installation (for Linux via Flatpak)
 
 This is a guide for advanced users to build the app from source.
@@ -88,7 +80,7 @@ This is a guide for advanced users to build the app from source.
 
 ## Disclaimer
 
-This program is for educational and informational purposes only. The results **do not constitute investment advice or a recommendation to buy or sell.** All data is sourced from third-party APIs (`yfinance`) and may contain errors. Any investment decision based on this data is made solely at your own risk.
+This program is for educational and informational purposes only. The results **do not constitute investment advice or a recommendation to buy or sell.** By default, data is sourced from `yfinance` and by scraping public sources like Wikipedia, which may be unreliable or contain errors. Providing an optional API key from Financial Modeling Prep will use a more reliable data source. Any investment decision based on this data is made solely at your own risk.
 
 ## For Developers
 

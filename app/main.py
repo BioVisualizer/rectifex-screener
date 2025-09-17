@@ -159,42 +159,64 @@ class MainWindow(QMainWindow):
         ticker_source = self.ticker_source_combo.currentText()
         new_tickers = []
 
-        # Custom List is a special case that doesn't require an API key
-        if ticker_source == "Custom List":
-            new_tickers = self.current_tickers
-        else:
-            # All other sources now require an API key
-            if not self.api_key:
-                QMessageBox.critical(self, "API Key Required",
-                                     "An FMP API key is required to fetch all ticker lists.\n\n"
-                                     "Please add a free key in the 'Settings' menu to proceed.")
-                return
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.statusBar().showMessage(f"Fetching tickers for {ticker_source}...")
+        QApplication.processEvents()
 
-            QApplication.setOverrideCursor(Qt.WaitCursor)
-            self.statusBar().showMessage(f"Fetching tickers for {ticker_source}...")
-            QApplication.processEvents()
+        us_indices = ["S&P 500", "Nasdaq 100", "Dow Jones"]
 
-            try:
-                if ticker_source == "Default List":
-                    new_tickers = screener_engine.get_default_tickers(self.api_key)
+        try:
+            if ticker_source == "Default List":
+                new_tickers = ticker_fetcher.get_all_tickers()
+            elif ticker_source == "Custom List":
+                new_tickers = self.current_tickers
+            elif ticker_source == "DAX":
+                new_tickers = ticker_fetcher.get_dax_tickers()
+            elif ticker_source == "MDAX":
+                new_tickers = ticker_fetcher.get_mdax_tickers()
+            elif ticker_source == "SDAX":
+                new_tickers = ticker_fetcher.get_sdax_tickers()
+            elif ticker_source == "TecDAX":
+                new_tickers = ticker_fetcher.get_tecdax_tickers()
+            elif ticker_source in us_indices:
+                if not self.api_key:
+                    QMessageBox.critical(self, "API Key Required", f"An FMP API key is required to fetch tickers from the {ticker_source} index.\n\nPlease add one in Settings.")
+                    new_tickers = None # Ensure we don't proceed
                 else:
-                    # All other dropdown items are indices handled by the new fetcher
-                    new_tickers = ticker_fetcher.get_tickers_from_index(ticker_source, self.api_key)
+                    # This is a placeholder for the FMP API call, which is not in ticker_fetcher anymore
+                    # A better implementation would be to have a unified function.
+                    # For now, I'll add a temporary FMP fetcher here.
+                    # TODO: Refactor this into a unified function later.
+                    import requests # Local import for temporary solution
+                    endpoint = ticker_source.lower().replace(" ", "") + "-constituent"
+                    if ticker_source == "Dow Jones": endpoint = "dowjones-constituent"
+                    if ticker_source == "S&P 500": endpoint = "sp500-constituent"
+                    if ticker_source == "Nasdaq 100": endpoint = "nasdaq-constituent"
 
-                if new_tickers is None: # Indicates a failure in the fetching logic
-                    QMessageBox.critical(self, "Error", f"Failed to fetch ticker list for {ticker_source}.\nThis might be a network issue or an invalid API key.")
-                    self.statusBar().showMessage(f"Failed to fetch tickers for {ticker_source}.", 8000)
-                    new_tickers = [] # Ensure it's an empty list
-            finally:
-                QApplication.restoreOverrideCursor()
-                self.statusBar().clearMessage()
+                    url = f"https://financialmodelingprep.com/api/v3/{endpoint}?apikey={self.api_key}"
+                    try:
+                        resp = requests.get(url, timeout=15)
+                        resp.raise_for_status()
+                        data = resp.json()
+                        new_tickers = [item['symbol'] for item in data]
+                    except Exception as e:
+                        logging.error(f"FMP API call failed: {e}")
+                        new_tickers = None
 
-        if not new_tickers:
-            if ticker_source != "Custom List":
-                QMessageBox.warning(self, "No Tickers", f"The ticker list for '{ticker_source}' is empty or could not be loaded.")
+            if new_tickers is None:
+                 QMessageBox.critical(self, "Error", f"Failed to fetch ticker list for {ticker_source}.\nThis could be a network issue, or an API key may be required for this source.")
+                 self.statusBar().showMessage(f"Failed to fetch tickers for {ticker_source}.", 8000)
+                 new_tickers = []
+
+            self.current_tickers = new_tickers
+
+        finally:
+            QApplication.restoreOverrideCursor()
+            self.statusBar().clearMessage()
+
+        if not self.current_tickers and ticker_source != "Custom List":
+            QMessageBox.warning(self, "No Tickers", f"The ticker list for '{ticker_source}' is empty or could not be loaded.")
             return
-
-        self.current_tickers = new_tickers
 
         # --- Start the Scan ---
         self.is_scanning = True
