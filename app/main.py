@@ -51,8 +51,7 @@ class MainWindow(QMainWindow):
         self.ticker_source_label = QLabel("Ticker Source:")
         self.ticker_source_combo = QComboBox()
         self.ticker_source_combo.addItems([
-            "Default List", "DAX", "MDAX", "SDAX", "TecDAX",
-            "S&P 500", "Nasdaq 100", "Dow Jones", "Custom List"
+            "Default Global List", "Custom List"
         ])
         self.ticker_source_combo.currentIndexChanged.connect(self.on_ticker_source_changed)
         self.manage_tickers_button = QPushButton("Manage Custom List")
@@ -157,65 +156,15 @@ class MainWindow(QMainWindow):
 
     def start_scan(self):
         ticker_source = self.ticker_source_combo.currentText()
-        new_tickers = []
 
-        QApplication.setOverrideCursor(Qt.WaitCursor)
-        self.statusBar().showMessage(f"Fetching tickers for {ticker_source}...")
-        QApplication.processEvents()
+        if ticker_source == "Default Global List":
+            self.current_tickers = ticker_fetcher.get_default_tickers()
+        elif ticker_source == "Custom List":
+            # self.current_tickers is already updated by the dialog, so no action needed here.
+            pass
 
-        us_indices = ["S&P 500", "Nasdaq 100", "Dow Jones"]
-
-        try:
-            if ticker_source == "Default List":
-                new_tickers = ticker_fetcher.get_all_tickers()
-            elif ticker_source == "Custom List":
-                new_tickers = self.current_tickers
-            elif ticker_source == "DAX":
-                new_tickers = ticker_fetcher.get_dax_tickers()
-            elif ticker_source == "MDAX":
-                new_tickers = ticker_fetcher.get_mdax_tickers()
-            elif ticker_source == "SDAX":
-                new_tickers = ticker_fetcher.get_sdax_tickers()
-            elif ticker_source == "TecDAX":
-                new_tickers = ticker_fetcher.get_tecdax_tickers()
-            elif ticker_source in us_indices:
-                if not self.api_key:
-                    QMessageBox.critical(self, "API Key Required", f"An FMP API key is required to fetch tickers from the {ticker_source} index.\n\nPlease add one in Settings.")
-                    new_tickers = None # Ensure we don't proceed
-                else:
-                    # This is a placeholder for the FMP API call, which is not in ticker_fetcher anymore
-                    # A better implementation would be to have a unified function.
-                    # For now, I'll add a temporary FMP fetcher here.
-                    # TODO: Refactor this into a unified function later.
-                    import requests # Local import for temporary solution
-                    endpoint = ticker_source.lower().replace(" ", "") + "-constituent"
-                    if ticker_source == "Dow Jones": endpoint = "dowjones-constituent"
-                    if ticker_source == "S&P 500": endpoint = "sp500-constituent"
-                    if ticker_source == "Nasdaq 100": endpoint = "nasdaq-constituent"
-
-                    url = f"https://financialmodelingprep.com/api/v3/{endpoint}?apikey={self.api_key}"
-                    try:
-                        resp = requests.get(url, timeout=15)
-                        resp.raise_for_status()
-                        data = resp.json()
-                        new_tickers = [item['symbol'] for item in data]
-                    except Exception as e:
-                        logging.error(f"FMP API call failed: {e}")
-                        new_tickers = None
-
-            if new_tickers is None:
-                 QMessageBox.critical(self, "Error", f"Failed to fetch ticker list for {ticker_source}.\nThis could be a network issue, or an API key may be required for this source.")
-                 self.statusBar().showMessage(f"Failed to fetch tickers for {ticker_source}.", 8000)
-                 new_tickers = []
-
-            self.current_tickers = new_tickers
-
-        finally:
-            QApplication.restoreOverrideCursor()
-            self.statusBar().clearMessage()
-
-        if not self.current_tickers and ticker_source != "Custom List":
-            QMessageBox.warning(self, "No Tickers", f"The ticker list for '{ticker_source}' is empty or could not be loaded.")
+        if not self.current_tickers:
+            QMessageBox.warning(self, "No Tickers", f"The selected ticker list '{ticker_source}' is empty.")
             return
 
         # --- Start the Scan ---
