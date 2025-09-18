@@ -1,202 +1,95 @@
-import requests
-import pandas as pd
-import json
-from pathlib import Path
-import datetime
 import logging
-import io
-import time
 
-# --- Configuration ---
-CACHE_FILE = Path.home() / ".config" / "rectifex" / "tickers.json"
-CACHE_DURATION_DAYS = 7
+# This list is provided by the user to serve as the new default global stock universe.
+# It is comprehensive and removes the need for unreliable web scraping.
+DEFAULT_TICKER_LIST = [
+    "0001.HK", "0002.HK", "0003.HK", "0005.HK", "0011.HK", "0012.HK", "0016.HK", "0017.HK",
+    "005380.KS", "005490.KS", "005930.KS", "0066.HK", "00660.KS", "0267.HK", "035420.KS",
+    "0386.HK", "0388.HK", "051910.KS", "068270.KS", "0700.HK", "0857.HK", "0883.HK", "0939.HK",
+    "0941.HK", "1044.HK", "1299.HK", "1721.T", "1801.T", "1802.T", "1803.T", "1808.T",
+    "1812.T", "1925.T", "1928.T", "1963.T", "1COV.DE", "207940.KS", "2303.TW", "2308.TW",
+    "2317.TW", "2318.HK", "2330.TW", "2382.TW", "2412.TW", "2454.TW", "2628.HK", "2881.TW",
+    "2882.TW", "3405.T", "3407.T", "3988.HK", "4004.T", "4005.T", "4021.T", "4042.T",
+    "4043.T", "4061.T", "4063.T", "4183.T", "4188.T", "4208.T", "4452.T", "4631.T",
+    "4901.T", "4911.T", "5831.T", "6501.T", "6752.T", "6758.T", "6988.T", "7186.T",
+    "7201.T", "7202.T", "7203.T", "7205.T", "7211.T", "7261.T", "7267.T", "7269.T",
+    "7270.T", "7272.T", "7974.T", "8031.T", "8058.T", "8304.T", "8306.T", "8308.T",
+    "8309.T", "8316.T", "8331.T", "8354.T", "8411.T", "9202.T", "9432.T", "9433.T",
+    "9434.T", "9613.T", "9983.T", "9984.T", "9988.HK", "A", "AAL", "AAL.L", "AAP", "AAPL",
+    "ABBN.SW", "ABBV", "ABEV", "ABI.BR", "ABNB", "ABT", "AC.PA", "ACA.PA", "ACN", "AD.AS",
+    "ADANIENT.NS", "ADBE", "ADI", "ADP", "ADS.DE", "ADYEN.AS", "AENA.MC", "AEP", "AFRM",
+    "AGN.AS", "AI.PA", "AIG", "AIR.DE", "AIR.PA", "AKAM", "ALL.AX", "ALO.PA", "ALV.DE",
+    "AMAT", "AMC.AX", "AMD", "AMGN", "AMP.AX", "AMT", "AMZN", "ANSS", "ANTO.L", "ANZ.AX",
+    "AON", "APA", "APA.AX", "APD", "APH", "APT.AX", "ARW", "ASIANPAINT.NS", "ASML", "ASML.AS",
+    "ASRNL.AS", "ASX.AX", "ATD.TO", "ATO.PA", "AV.L", "AVB", "AVGO", "AVY", "AWK",
+    "AXISBANK.NS", "AXP", "AZN", "AZN.L", "BA", "BA.L", "BABA", "BAC", "BAFN.SW",
+    "BAJFINANCE.NS", "BARC.L", "BAS.DE", "BATS.L", "BAX", "BAYN.DE", "BBDC4.SA", "BBY",
+    "BCE", "BDX", "BEI.DE", "BEN", "BHARTIARTL.NS", "BHP.AX", "BILL", "BK", "BKNG", "BLK",
+    "BMO", "BMW.DE", "BMY", "BNP.PA", "BNS", "BNS.TO", "BP", "BP.L", "BRK-A", "BRK-B",
+    "BT-A.L", "BXB.AX", "C", "CA.PA", "CABK.MC", "CAP.PA", "CARR", "CAT", "CBA.AX", "CCH.L",
+    "CDNS", "CE", "CFR.SW", "CHTR", "CI", "CL", "CLNX.MC", "CM.TO", "CMCSA", "CME", "CMG",
+    "CMI", "CNP", "CNQ", "CNR.TO", "COF", "COIN", "COL.AX", "CON.DE", "COO", "COP", "COST",
+    "CP.TO", "CPG.L", "CPRT", "CPT", "CRM", "CRWD", "CS.PA", "CSCO", "CSGN.SW", "CSL.AX",
+    "CSU.TO", "CSX", "CTAS", "CTSH", "CVS", "CVX", "D", "DAI.DE", "DAL", "DASH", "DB1.DE",
+    "DBK.DE", "DD", "DDOG", "DE", "DFS", "DG", "DG.PA", "DGE.L", "DGX", "DHER.DE", "DHI",
+    "DHL.DE", "DHR", "DIS", "DLR", "DLTR", "DOV", "DOW", "DPW.DE", "DSM.AS", "DTE.DE",
+    "DTG.DE", "DUK", "DVN", "DXCM", "EA", "EBAY", "EIX", "EL", "EMN", "EN.PA", "ENB",
+    "ENB.TO", "ENEL.MI", "ENG.MC", "ENGI.PA", "ENI.MI", "ENPH", "ENR.DE", "EOAN.DE",
+    "EOG", "EQNR.OL", "EQR", "ERF.PA", "ES", "ESS", "ETN", "ETSY", "EW", "EXC", "EXPD",
+    "EXPE", "F", "FAST", "FDX", "FE", "FER.MC", "FFIV", "FIS", "FISV", "FITB", "FLG.MC",
+    "FLTR.L", "FME.DE", "FMG.AX", "FRE.DE", "FRES.L", "FSLR", "GD", "GE", "GGB", "GGBR4.SA",
+    "GIB-A.TO", "GILD", "GIS", "GIVN.SW", "GLE.PA", "GLW", "GM", "GMG.AX", "GOOG", "GOOGL",
+    "GPN", "GRF.MC", "GRMN", "GS", "GSK", "GSK.L", "GWW", "HAL", "HAS", "HBAN", "HCA",
+    "HCLTECH.NS", "HD", "HDFCBANK.NS", "HEI.DE", "HEIA.AS", "HEN3.DE", "HES", "HIK.L",
+    "HINDUNILVR.NS", "HLT", "HNR1.DE", "HOLN.SW", "HON", "HRL", "HSBA.L", "HSBC", "HSBC.L",
+    "HST", "HUM", "IAG.AX", "IAG.L", "IBE.MC", "IBM", "ICE", "ICICIBANK.NS", "IDR.MC",
+    "IDXX", "IEX", "IFX.DE", "IHG.L", "III.L", "ILMN", "IMCD.AS", "IMO.TO", "IMP.L",
+    "INF.L", "INFY.NS", "INGA.AS", "INTC", "INTU", "IP", "IPG", "IQV", "IR", "IRM", "ISP.MI",
+    "ISRG", "ITRK.L", "ITUB", "ITUB4.SA", "ITW", "ITX.MC", "IVZ", "JCI", "JD.L", "JNJ",
+    "JPM", "K", "KER.PA", "KEY", "KHC", "KIM", "KMB", "KMI", "KO", "KOTAKBANK.NS", "KPN.AS",
+    "KR", "L", "L.TO", "LAND.L", "LEG", "LGEN.L", "LH", "LHX", "LIN", "LIN.DE", "LLC.AX",
+    "LLOY.L", "LLY", "LMT", "LNT", "LOGN.SW", "LOW", "LR.PA", "LT.NS", "LUV", "LVMH.PA",
+    "LYB", "LYV", "M&M.NS", "MA", "MAP.MC", "MAR", "MARUTI.NS", "MAS", "MB.MI", "MBG.DE",
+    "MC.PA", "MCD", "MCHP", "MCK", "MCO", "MDB", "MDLZ", "MDT", "MEL.MC", "META", "MFC",
+    "MG.TO", "ML.PA", "MMC", "MMM", "MNG.L", "MNST", "MO", "MOS", "MPC", "MQG.AX", "MRK",
+    "MRK.DE", "MRL.MC", "MRO", "MRO.L", "MS", "MSCI", "MSFT", "MSI", "MTB", "MTD", "MTX.DE",
+    "MU", "MUV2.DE", "NAB.AX", "NCLH", "NCM.AX", "NDAQ", "NEE", "NEM", "NESN.SW", "NET",
+    "NFLX", "NG.L", "NI", "NKE", "NN.AS", "NOC", "NOVN.SW", "NOVO-B.CO", "NOW", "NRG", "NSC",
+    "NST.AX", "NTAP", "NTGY.MC", "NTR.TO", "NTRS", "NVDA", "NVR", "NWG.L", "NWL", "NWSA", "O",
+    "OCADO.L", "OKE", "OKTA", "OR.PA", "ORA.PA", "ORCL", "OXY", "P911.DE", "PAH3.DE", "PANW",
+    "PART.SW", "PATH", "PAYC", "PAYX", "PBR", "PCAR", "PDD", "PEG", "PEP", "PETR4.SA", "PFE",
+    "PFG", "PG", "PGR", "PH", "PHIA.AS", "PHM", "PHNX.L", "PINS", "PKG", "PLD", "PLTR", "PM",
+    "PNC", "PNR", "PNW", "POOL", "PPG", "PPL", "PRU", "PRU.L", "PRX.AS", "PSA", "PSN.L",
+    "PSON.L", "PSX", "PUB.PA", "PUM.DE", "PVH", "PWR", "PXD", "PYPL", "QAN.AX", "QBE.AX",
+    "QCOM", "QIA.DE", "QRVO", "RACE.MI", "RAND.AS", "RBLX", "RCL", "REG", "REGN", "RELIANCE.NS",
+    "REN.AS", "REP.MC", "RF", "RHI", "RHM.DE", "RI.PA", "RIO.AX", "RIO.L", "RL", "RMD",
+    "RMS.PA", "RNO.PA", "ROG.SW", "ROK", "ROKU", "ROL", "ROP", "ROST", "RR.L", "RSG", "RTO.L",
+    "RTX", "RWE.DE", "RY", "RY.TO", "SAF.PA", "SAN.MC", "SAN.PA", "SAP", "SAP.DE", "SBAC",
+    "SBIN.NS", "SBRY.L", "SBUX", "SCCO", "SCG.AX", "SCHW", "SCMN.SW", "SEDG", "SEE", "SGE.L",
+    "SGO.PA", "SGP.AX", "SGSN.SW", "SHEL", "SHEL.L", "SHELL.AS", "SHL.DE", "SHOP.TO", "SHW",
+    "SIE.DE", "SJM", "SLB", "SLF.TO", "SLHN.SW", "SMIN.L", "SMT.L", "SN.L", "SNA", "SNOW",
+    "SO", "SOFI", "SPG", "SPGI", "SPOT", "SQ", "SRE", "SREN.SW", "SRT3.DE", "SSE.L", "STAN.L",
+    "STE", "STLA", "STM.MI", "STO.AX", "STT", "STX", "STZ", "SU", "SU.PA", "SU.TO", "SUN.AX",
+    "SUNPHARMA.NS", "SWK", "SWKS", "SY1.DE", "SYK", "T", "T.TO", "TAP", "TATASTEEL.NS",
+    "TCL.AX", "TCS.NS", "TD", "TD.TO", "TDG", "TE.PA", "TEF.MC", "TEL", "TEN.MI", "TFC",
+    "TFX", "TGT", "TITAN.NS", "TJX", "TLS.AX", "TMO", "TMUS", "TRMB", "TRP", "TRP.TO", "TRV",
+    "TSCO", "TSCO.L", "TSLA", "TSN", "TT", "TTD", "TTE", "TTE.PA", "TWLO", "TXN", "TXT", "U",
+    "UAL", "UBSG.SW", "UCG.MI", "UDR", "UGI", "UHR.SW", "UL", "ULVR.L", "UMG.AS", "UMG.PA",
+    "UMPQ", "UNA.AS", "UNH", "UNP", "UPS", "UPST", "URI", "USB", "V", "VALE", "VALE3.SA",
+    "VFC", "VICI", "VIE.PA", "VIV.PA", "VLO", "VMC", "VNA.DE", "VNO", "VOD.L", "VOLV-B.ST",
+    "VOW3.DE", "VRSK", "VRSN", "VRTX", "VTR", "VZ", "WBA", "WBC.AX", "WBD", "WCN.TO", "WDAY",
+    "WDC", "WDS.AX", "WEC", "WEGE3.SA", "WELL", "WES.AX", "WFC", "WHR", "WIPRO.NS", "WKL.AS",
+    "WM", "WMB", "WMT", "WOW.AX", "WPM", "WRB", "WRK", "WST", "WTB.L", "WY", "WYNN", "XEL",
+    "XOM", "XRX", "XYL", "YUM", "ZAL.DE", "ZBH", "ZBRA", "ZION", "ZM", "ZS", "ZTS", "ZURN.SW",
+    # Addendum from user request 2025-09-18
+    'ONTO', 'STRT', 'SCATC.OL', 'SBS.DE', 'GFT.DE', 'TGTX', 'ENPH', 'PDFS', 'NTLA', 'PLAB',
+    'KTN.DE', 'ATS.VI', 'DRO.AX', 'IIN.DE', 'MYGN', 'DQ', 'HP3A.DE', 'CSIQ', 'AUPH', 'SEDG',
+    'MUM.DE', 'PINK.V'
+]
 
-# Wikipedia URLs
-URL_DAX = "https://en.wikipedia.org/wiki/DAX"
-URL_MDAX = "https://en.wikipedia.org/wiki/MDAX"
-URL_TECDAX_DE = "https://de.wikipedia.org/wiki/TecDAX"
-URL_SDAX_DE = "https://de.wikipedia.org/wiki/SDAX"
-URL_NASDAQ100 = "https://en.wikipedia.org/wiki/Nasdaq-100"
-URL_SP500 = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-
-# --- Global Session ---
-session = requests.Session()
-session.headers.update({'User-Agent': 'RectifexStockScreener/1.0'})
-
-
-def _fetch_html(url):
-    """Fetches HTML content from a URL."""
-    try:
-        response = session.get(url)
-        response.raise_for_status()
-        return response.text
-    except requests.RequestException as e:
-        logging.error(f"Failed to fetch HTML from {url}: {e}")
-        return None
-
-def get_sp500_tickers():
-    """Fetches S&P 500 tickers from Wikipedia."""
-    html = _fetch_html(URL_SP500)
-    if not html: return []
-    try:
-        tables = pd.read_html(io.StringIO(html))
-        sp500_table = tables[0]
-        return sp500_table['Symbol'].str.replace('.', '-', regex=False).tolist()
-    except Exception as e:
-        logging.error(f"Could not parse S&P 500 table: {e}")
-        return []
-
-def get_nasdaq100_tickers():
-    """Fetches Nasdaq 100 tickers from Wikipedia."""
-    html = _fetch_html(URL_NASDAQ100)
-    if not html: return []
-    try:
-        tables = pd.read_html(io.StringIO(html))
-        nasdaq_table = tables[4]
-        return nasdaq_table['Ticker'].tolist()
-    except Exception as e:
-        logging.error(f"Could not parse Nasdaq 100 table: {e}")
-        return []
-
-def get_dax_tickers():
-    """Fetches DAX tickers from Wikipedia."""
-    html = _fetch_html(URL_DAX)
-    if not html: return []
-    try:
-        tables = pd.read_html(io.StringIO(html))
-        dax_table = tables[4]
-        return dax_table['Ticker'].tolist()
-    except Exception as e:
-        logging.error(f"Could not parse DAX table: {e}")
-        return []
-
-def get_mdax_tickers():
-    """Fetches MDAX tickers from Wikipedia."""
-    html = _fetch_html(URL_MDAX)
-    if not html: return []
-    try:
-        tables = pd.read_html(io.StringIO(html))
-        mdax_table = tables[2]
-        tickers = mdax_table['Symbol'].dropna().tolist()
-        processed_tickers = []
-        for ticker in tickers:
-            if isinstance(ticker, str):
-                if not any(ticker.endswith(suffix) for suffix in ['.DE', '.LU', '.PA', '.AS']):
-                    processed_tickers.append(f"{ticker}.DE")
-                else:
-                    processed_tickers.append(ticker)
-        return processed_tickers
-    except Exception as e:
-        logging.error(f"Could not parse MDAX table: {e}")
-        return []
-
-def get_tecdax_tickers():
-    """Fetches TecDAX tickers by looking up company names."""
-    companies = get_companies_from_german_wiki(URL_TECDAX_DE)
-    tickers = set()
-    for company in companies:
-        ticker = _search_ticker_yahoo(company)
-        if ticker:
-            tickers.add(ticker)
-    return sorted(list(tickers))
-
-def get_sdax_tickers():
-    """Fetches SDAX tickers by looking up company names."""
-    companies = get_companies_from_german_wiki(URL_SDAX_DE)
-    tickers = set()
-    for company in companies:
-        ticker = _search_ticker_yahoo(company)
-        if ticker:
-            tickers.add(ticker)
-    return sorted(list(tickers))
-
-
-def get_companies_from_german_wiki(url):
-    """Fetches company names from a German Wikipedia index page."""
-    html = _fetch_html(url)
-    if not html: return []
-    try:
-        tables = pd.read_html(io.StringIO(html))
-        for table in tables:
-            if 'Name' in table.columns and 'Branche' in table.columns:
-                return table['Name'].str.replace(r'\[.*?\]', '', regex=True).str.strip().tolist()
-        logging.error(f"Could not find a valid company table in {url}")
-        return []
-    except Exception as e:
-        logging.error(f"Could not parse table from {url}: {e}")
-        return []
-
-def _search_ticker_yahoo(company_name):
-    """Searches Yahoo Finance for a ticker symbol for a given company name."""
-    search_url = f"https://query1.finance.yahoo.com/v1/finance/search"
-    params = {'q': company_name, 'quotesCount': 1, 'newsCount': 0}
-    try:
-        time.sleep(0.5)
-        response = session.get(search_url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        if data.get('quotes'):
-            ticker = data['quotes'][0]['symbol']
-            logging.info(f"Found ticker '{ticker}' for company '{company_name}'")
-            return ticker
-        else:
-            logging.warning(f"No ticker found for company '{company_name}' on Yahoo Finance.")
-            return None
-    except requests.RequestException as e:
-        logging.error(f"Yahoo Finance search failed for '{company_name}': {e}")
-        return None
-    except (json.JSONDecodeError, KeyError) as e:
-        logging.error(f"Could not parse Yahoo Finance response for '{company_name}': {e}")
-        return None
-
-
-def get_all_tickers(force_refresh=False):
+def get_default_tickers():
     """
-    Aggregates tickers from all sources, using a cache file.
+    Returns the comprehensive, hardcoded list of global tickers provided by the user.
     """
-    CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    if not force_refresh and CACHE_FILE.exists():
-        try:
-            with open(CACHE_FILE, 'r') as f:
-                data = json.load(f)
-                cache_date = datetime.datetime.fromisoformat(data['date'])
-                if datetime.datetime.now() - cache_date < datetime.timedelta(days=CACHE_DURATION_DAYS):
-                    logging.info("Loading tickers from cache.")
-                    return data['tickers']
-        except (json.JSONDecodeError, KeyError):
-             logging.warning("Cache file is invalid. Fetching fresh data.")
-
-
-    logging.info("Fetching fresh ticker data.")
-    all_tickers = set()
-
-    all_tickers.update(get_sp500_tickers())
-    all_tickers.update(get_nasdaq100_tickers())
-    all_tickers.update(get_dax_tickers())
-    all_tickers.update(get_mdax_tickers())
-    all_tickers.update(get_tecdax_tickers())
-    all_tickers.update(get_sdax_tickers())
-
-    supplementary_tickers = ["NVDA", "PLTR", "GOOGL", "GOOG", "MSFT", "SRT3.DE", "SRT.DE", "HYQ.DE"]
-    all_tickers.update(supplementary_tickers)
-
-    sorted_tickers = sorted(list(filter(None, all_tickers)))
-
-    logging.info(f"Saving {len(sorted_tickers)} tickers to cache.")
-    with open(CACHE_FILE, 'w') as f:
-        json.dump({
-            'date': datetime.datetime.now().isoformat(),
-            'tickers': sorted_tickers
-        }, f, indent=4)
-
-    return sorted_tickers
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    # tickers = get_all_tickers(force_refresh=True)
-    # print(f"\n---> Found {len(tickers)} unique tickers in total. <---")
-    print("DAX:", get_dax_tickers())
-    print("MDAX:", get_mdax_tickers())
-    print("TecDAX:", get_tecdax_tickers())
-    print("SDAX:", get_sdax_tickers())
+    logging.info(f"Loading {len(DEFAULT_TICKER_LIST)} tickers from the default global list.")
+    return DEFAULT_TICKER_LIST

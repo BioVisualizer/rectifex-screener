@@ -9,7 +9,7 @@ def _calculate_technical_indicators(ticker_symbol: str, period: str = "1y"):
     """
     try:
         # Fetch historical data using yfinance, hide progress bar
-        data = yf.download(ticker_symbol, period=period, auto_adjust=True, progress=False)
+        data = yf.download(ticker_symbol, period=period, auto_adjust=True, progress=False, timeout=30)
 
         if data.empty:
             print(f"Error: No data downloaded for {ticker_symbol}. It might be an invalid ticker.")

@@ -16,7 +16,7 @@ Rectifex is a tool for **relative analysis**. It answers the question: *"Which c
 
 *   **Integrated Chart Analysis:** Go from screening to analysis in a single click. Every stock now features an integrated technical chart, showing price action (Candlesticks), key trends (50 & 200-day SMAs), and momentum indicators (RSI & MACD) to help you assess not just *what* is undervalued, but also *when* an entry point might be opportune.
 *   **Multi-Strategy Analysis:** Choose from four predefined strategies (`Balanced`, `High Growth`, `Deep Value`, `Quality Dividend`) to sort the results based on your focus.
-*   **Global Stock Universe:** Analyzes a curated list of nearly 200 leading companies from North America, Europe, and Asia.
+*   **Global Stock Universe:** Analyzes companies from major German indices by default. By adding a free, optional API key from Financial Modeling Prep (FMP), you can also analyze US indices (S&P 500, etc.) and benefit from a higher-quality data source.
 *   **6-Factor Model:** Every stock is evaluated across six fundamental dimensions based on proven financial metrics.
 *   **Data Export:** Save the complete analysis results as a `.csv` file with a single click for further processing in spreadsheets.
 *   **Interactive Results:** Sort the results table by clicking on any column header to arrange the data as you see fit.
@@ -80,7 +80,47 @@ This is a guide for advanced users to build the app from source.
 
 ## Disclaimer
 
-This program is for educational and informational purposes only. The results **do not constitute investment advice or a recommendation to buy or sell.** All data is sourced from third-party APIs (`yfinance`) and may contain errors. Any investment decision based on this data is made solely at your own risk.
+This program is for educational and informational purposes only. The results **do not constitute investment advice or a recommendation to buy or sell.** By default, data is sourced from `yfinance` and by scraping public sources like Wikipedia, which may be unreliable or contain errors. Providing an optional API key from Financial Modeling Prep will use a more reliable data source. Any investment decision based on this data is made solely at your own risk.
+
+## For Developers
+
+This section provides information for those who want to contribute to or modify the application.
+
+### Project Structure
+
+The application code is located in the `app/` directory. It has been refactored for better maintainability:
+*   `main.py`: Contains the main window and core application logic.
+*   `screener_engine.py`: Handles all financial calculations and data processing.
+*   `ticker_fetcher.py`: Manages the fetching of stock ticker lists from the FMP API.
+*   `technical_analyzer.py`: Generates the technical analysis charts.
+*   `scan_worker.py`: Contains the `QThread` worker for running scans in the background.
+*   `ui/`: This directory contains the code for all dialog windows (Settings, Help, etc.), with each dialog in its own file.
+
+### Running from Source
+
+1.  **Set up a virtual environment:**
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
+2.  **Install dependencies:**
+    The required packages are listed with pinned versions in `app/requirements.txt`.
+    ```bash
+    pip install -r app/requirements.txt
+    ```
+3.  **Run the application:**
+    ```bash
+    python app/main.py
+    ```
+
+### Running Tests
+
+The project uses `pytest` for automated testing.
+```bash
+pytest -v
+```
+
+---
 
 ## License
 
