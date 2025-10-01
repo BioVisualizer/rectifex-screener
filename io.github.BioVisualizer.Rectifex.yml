@@ -15,6 +15,7 @@ finish-args:
   - --env=DISPLAY=$DISPLAY
   - --filesystem=xdg-data/icons
   - --filesystem=xdg-config/rectifex:create
+  - --filesystem=~/.cache/com.rectifex.GlobalScreener:create
 
 modules:
   - name: python3-deps
@@ -23,21 +24,22 @@ modules:
       - pip3 install --prefix=/app --no-user --no-build-isolation -r requirements.txt
     sources:
       - type: file
-        path: app/requirements.txt
+        path: requirements.txt
 
-  - name: stockscreener
+  - name: rectifex-app
     buildsystem: simple
     build-commands:
-      - install -D -t /app/bin/ main.py screener_engine.py help_texts.py technical_analyzer.py ticker_fetcher.py scan_worker.py
-      - cp -r ui /app/bin/
+      # Copy the new application structure
+      - cp -r app core cli assets /app/
+      # Install license and startup script
       - install -D -t /app/share/licenses/io.github.BioVisualizer.Rectifex/ LICENSE
       - install -D -m 755 start.sh /app/bin/start.sh
-      - install -D -t /app/share/applications/ share/applications/io.github.BioVisualizer.Rectifex.desktop
-      - install -D -t /app/share/metainfo/ share/metainfo/io.github.BioVisualizer.Rectifex.appdata.xml
-      - install -D -t /app/share/icons/hicolor/scalable/apps/ share/icons/hicolor/scalable/apps/io.github.BioVisualizer.Rectifex.svg
+      # Install desktop integration files
+      - install -D -t /app/share/applications/ app/share/applications/io.github.BioVisualizer.Rectifex.desktop
+      - install -D -t /app/share/metainfo/ app/share/metainfo/io.github.BioVisualizer.Rectifex.appdata.xml
+      - install -D -t /app/share/icons/hicolor/scalable/apps/ app/share/icons/hicolor/scalable/apps/io.github.BioVisualizer.Rectifex.svg
+      # Update icon cache
       - gtk-update-icon-cache -f -t /app/share/icons/hicolor
     sources:
       - type: dir
-        path: app
-      - type: file
-        path: LICENSE
+        path: .
