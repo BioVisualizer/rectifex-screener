@@ -2,7 +2,7 @@
 PySide6
 yfinance
 mplfinance
-pandas-ta>=0.3.14b
+pandas-ta==0.3.14b0
 rapidfuzz>=3.9
 mplcursors
 
