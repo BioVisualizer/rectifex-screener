@@ -22,9 +22,9 @@ kiwisolver
 lxml
 matplotlib
 multitasking
-numpy
+numpy<2.3
 packaging
-pandas
+pandas<2.3
 peewee
 pillow
 platformdirs
