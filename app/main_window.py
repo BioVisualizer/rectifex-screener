@@ -14,7 +14,7 @@ from app.theming.palette import get_dark_palette
 
 # --- Core Service Imports ---
 from core.config import DEFAULT_UNIVERSE
-from core.data.universe import build_or_refresh_universe, resolve_symbol
+from core.data.universe import build_or_refresh_universe
 from core.data.loader import fetch_live_ohlcv, fetch_live_metadata
 from core.data.cache import CacheService
 from core.indicators.engine import IndicatorEngine
@@ -22,11 +22,10 @@ from core.indicators.fib import auto_fib_levels
 from core.signals.engine import SignalsEngine
 from core.chart.service import ChartService
 from core.export import export_single_stock_to_excel
-from core.scan.worker import ScanWorker # Import the new scan worker
+from core.scan.worker import ScanWorker
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# (DataWorker class remains the same)
 class DataWorker(QObject):
     """
     Handles all long-running data operations for a SINGLE stock.
@@ -47,16 +46,16 @@ class DataWorker(QObject):
     @Slot()
     def run(self):
         try:
-            logging.info(f"Worker starting for symbol: {self.symbol}")
+            logging.info(f"DataWorker starting for symbol: {self.symbol}")
 
-            resolution = resolve_symbol(self.symbol)
-            if not resolution:
-                raise ValueError(f"Could not resolve symbol '{self.symbol}'")
-
-            resolved_symbol = resolution['symbol']
-            is_stale = resolution['source'] == 'fuzzy_cache'
+            # Simplified logic: Directly use the provided symbol.
+            # This bypasses the complex resolution logic that was causing issues.
+            resolved_symbol = self.symbol.strip().upper()
 
             ohlcv_df = fetch_live_ohlcv(resolved_symbol)
+            if ohlcv_df.empty:
+                raise ValueError(f"No OHLCV data found for symbol '{resolved_symbol}'")
+
             metadata = fetch_live_metadata(resolved_symbol)
             self.cache.save_ohlcv(resolved_symbol, ohlcv_df)
 
@@ -74,7 +73,7 @@ class DataWorker(QObject):
             self.results_ready.emit({
                 "symbol": resolved_symbol, "ohlcv": ohlcv_df, "chart_path": chart_path,
                 "metadata": metadata, "indicators": indicators, "signals": signals,
-                "fib_data": fib_data, "is_stale": is_stale
+                "fib_data": fib_data, "is_stale": False # Stale logic disabled for now
             })
 
         except Exception as e:
@@ -112,6 +111,8 @@ class MainWindow(QMainWindow):
         self.results_table.setHorizontalHeaderLabels(["Ticker", "Name", "Score", "Market Cap"])
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.results_table.setSortingEnabled(True)
+        self.results_table.setEditTriggers(QTableWidget.NoEditTriggers) # Prevent editing on click
+        self.results_table.setSelectionBehavior(QTableWidget.SelectRows)
 
         self.chart_panel = ChartPanel()
 
@@ -129,6 +130,7 @@ class MainWindow(QMainWindow):
         self.search_bar.symbolSelected.connect(self.start_analysis_for_symbol)
         self.chart_panel.export_button.clicked.connect(self.export_analysis_to_excel)
         self.scan_button.clicked.connect(self.start_full_scan)
+        self.results_table.cellDoubleClicked.connect(self.on_table_double_click) # Restore double-click functionality
 
         self.init_universe()
 
@@ -152,6 +154,7 @@ class MainWindow(QMainWindow):
 
     @Slot(str)
     def start_analysis_for_symbol(self, symbol: str):
+        if not symbol: return
         self.statusBar().showMessage(f"Fetching live data for {symbol}...")
         self.thread = QThread()
         self.worker = DataWorker(symbol)
@@ -170,7 +173,7 @@ class MainWindow(QMainWindow):
     def start_full_scan(self):
         self.statusBar().showMessage("Starting full scan...")
         self.scan_button.setEnabled(False)
-        self.results_table.setRowCount(0) # Clear previous results
+        self.results_table.setRowCount(0)
 
         self.scan_thread = QThread()
         self.scan_worker = ScanWorker(DEFAULT_UNIVERSE)
@@ -202,6 +205,12 @@ class MainWindow(QMainWindow):
         self.scan_button.setEnabled(True)
         self.scan_thread.quit()
         self.scan_thread.wait()
+
+    @Slot(int, int)
+    def on_table_double_click(self, row, column):
+        ticker_item = self.results_table.item(row, 0)
+        if ticker_item:
+            self.start_analysis_for_symbol(ticker_item.text())
 
     @Slot(dict)
     def on_analysis_complete(self, results: dict):
