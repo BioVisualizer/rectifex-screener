@@ -13,7 +13,7 @@ from app.widgets.chart_panel import ChartPanel
 from app.theming.palette import get_dark_palette
 
 # --- Core Service Imports ---
-from core.config import build_or_refresh_universe
+from core.data.universe import build_or_refresh_universe
 from core.data.loader import fetch_live_ohlcv, fetch_live_metadata
 from core.data.cache import CacheService
 from core.data.universe import resolve_symbol
