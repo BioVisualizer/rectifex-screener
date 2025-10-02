@@ -28,7 +28,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class DataWorker(QObject):
     """
-    Handles all long-running data operations for a SINGLE stock.
+    Handles all long-running data operations in a separate thread.
+    Crucially, it does NOT perform any UI operations like charting.
     """
     finished = Signal()
     results_ready = Signal(dict)
@@ -36,49 +37,32 @@ class DataWorker(QObject):
 
     def __init__(self, symbol: str):
         super().__init__()
-        self.symbol = symbol
+        self.symbol = symbol.strip().upper()
         self.cache = CacheService()
         self.indicator_engine = IndicatorEngine()
         self.fib_engine = auto_fib_levels
         self.signal_engine = SignalsEngine()
-        self.chart_service = ChartService()
 
     @Slot()
     def run(self):
         try:
             logging.info(f"DataWorker starting for symbol: {self.symbol}")
 
-            # Simplified logic: Directly use the provided symbol.
-            # This bypasses the complex resolution logic that was causing issues.
-            resolved_symbol = self.symbol.strip().upper()
-
-            ohlcv_df = fetch_live_ohlcv(resolved_symbol)
+            ohlcv_df = fetch_live_ohlcv(self.symbol)
             if ohlcv_df.empty:
-                raise ValueError(f"No OHLCV data found for symbol '{resolved_symbol}'")
+                raise ValueError(f"No OHLCV data found for symbol '{self.symbol}'")
 
-            metadata = fetch_live_metadata(resolved_symbol)
-            self.cache.save_ohlcv(resolved_symbol, ohlcv_df)
+            metadata = fetch_live_metadata(self.symbol)
+            self.cache.save_ohlcv(self.symbol, ohlcv_df)
 
             indicators = self.indicator_engine.compute(ohlcv_df)
             fib_data = self.fib_engine(ohlcv_df['High'], ohlcv_df['Low'], ohlcv_df['Close'])
             signals = self.signal_engine.generate(ohlcv_df, indicators)
 
-            # --- Prepare data for charting ---
-            ohlcv_for_chart = ohlcv_df.tail(252)
-            # Slice indicators to match the ohlcv data, checking for empty series
-            indicators_for_chart = {k: v.tail(252) for k, v in indicators.items() if hasattr(v, 'tail')}
-
-            chart_options = {
-                'show_ema_ribbon': True, 'show_bbands': True, 'show_vwap': True,
-                'show_rsi': True, 'show_macd': True, 'show_fib': True,
-                'bb_len': 20, 'bb_std': 2.0
-            }
-            chart_path = self.chart_service.draw(resolved_symbol, ohlcv_for_chart, indicators_for_chart, fib_data, chart_options)
-
             self.results_ready.emit({
-                "symbol": resolved_symbol, "ohlcv": ohlcv_df, "chart_path": chart_path,
-                "metadata": metadata, "indicators": indicators, "signals": signals,
-                "fib_data": fib_data, "is_stale": False # Stale logic disabled for now
+                "symbol": self.symbol, "ohlcv": ohlcv_df, "metadata": metadata,
+                "indicators": indicators, "signals": signals, "fib_data": fib_data,
+                "is_stale": False
             })
 
         except Exception as e:
@@ -96,6 +80,7 @@ class MainWindow(QMainWindow):
 
         self.apply_theme()
         self.latest_analysis_results = None
+        self.chart_service = ChartService() # Chart service now lives on the main thread
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -116,7 +101,7 @@ class MainWindow(QMainWindow):
         self.results_table.setHorizontalHeaderLabels(["Ticker", "Name", "Score", "Market Cap"])
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.results_table.setSortingEnabled(True)
-        self.results_table.setEditTriggers(QTableWidget.NoEditTriggers) # Prevent editing on click
+        self.results_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.results_table.setSelectionBehavior(QTableWidget.SelectRows)
 
         self.chart_panel = ChartPanel()
@@ -131,11 +116,10 @@ class MainWindow(QMainWindow):
         self.setStatusBar(QStatusBar(self))
         self.statusBar().showMessage("Ready. Use the search bar or run a full scan.")
 
-        # --- Connections ---
         self.search_bar.symbolSelected.connect(self.start_analysis_for_symbol)
         self.chart_panel.export_button.clicked.connect(self.export_analysis_to_excel)
         self.scan_button.clicked.connect(self.start_full_scan)
-        self.results_table.cellDoubleClicked.connect(self.on_table_double_click) # Restore double-click functionality
+        self.results_table.cellDoubleClicked.connect(self.on_table_double_click)
 
         self.init_universe()
 
@@ -222,7 +206,18 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Analysis complete.", 5000)
         self.latest_analysis_results = results
 
-        self.chart_panel.update_chart(results['chart_path'])
+        # --- Charting now happens on the main thread ---
+        ohlcv_for_chart = results['ohlcv'].tail(252)
+        indicators_for_chart = {k: v.tail(252) for k, v in results['indicators'].items() if hasattr(v, 'tail')}
+        chart_options = {
+            'show_ema_ribbon': True, 'show_bbands': True, 'show_vwap': True,
+            'show_rsi': True, 'show_macd': True, 'show_fib': True,
+            'bb_len': 20, 'bb_std': 2.0
+        }
+        chart_path = self.chart_service.draw(results['symbol'], ohlcv_for_chart, indicators_for_chart, results['fib_data'], chart_options)
+        self.latest_analysis_results['chart_path'] = chart_path # Update for export
+
+        self.chart_panel.update_chart(chart_path)
         self.chart_panel.update_overview(results['metadata'])
         self.chart_panel.set_stale_badge_visibility(results['is_stale'])
         self.chart_panel.export_button.setEnabled(True)
@@ -236,8 +231,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def export_analysis_to_excel(self):
-        if not self.latest_analysis_results:
-            self.statusBar().showMessage("No analysis data to export.", 5000)
+        if not self.latest_analysis_results or not self.latest_analysis_results.get('chart_path'):
+            self.statusBar().showMessage("No complete analysis data to export.", 5000)
             return
 
         self.statusBar().showMessage("Exporting to Excel...", 3000)
