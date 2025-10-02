@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTabWidget, QLabel, QPushButton,
                                QHBoxLayout, QGroupBox, QFormLayout, QCheckBox, QFrame)
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, Qt
 
 class ChartPanel(QWidget):
     """
@@ -27,7 +27,7 @@ class ChartPanel(QWidget):
 
         chart_layout = QVBoxLayout()
         chart_layout.addWidget(self.chart_view)
-        chart_layout.addWidget(self.stale_badge, alignment=self.stale_badge.alignment() | self.stale_badge.alignmentFlag.AlignTop)
+        chart_layout.addWidget(self.stale_badge, alignment=Qt.AlignRight)
 
 
         # --- Control Tabs ---
