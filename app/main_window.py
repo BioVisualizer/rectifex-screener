@@ -4,11 +4,13 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                                QPushButton, QSplitter, QStatusBar, QLabel, QTableWidget)
 from PySide6.QtCore import QObject, QThread, Signal, Slot, Qt
 
+import os
+from pathlib import Path
+
 # --- Local Imports for New Architecture ---
 from app.widgets.search_bar import SearchBar
 from app.widgets.chart_panel import ChartPanel
 from app.theming.palette import get_dark_palette
-from app.theming.style import qss
 
 # --- Core Service Imports ---
 from core.config import build_or_refresh_universe
@@ -146,8 +148,15 @@ class MainWindow(QMainWindow):
 
     def apply_theme(self):
         self.setPalette(get_dark_palette())
-        self.setStyleSheet(qss)
-        logging.info("Modern dark theme applied.")
+
+        # Correctly read the QSS file from disk
+        try:
+            style_path = Path(__file__).parent / "theming" / "style.qss"
+            with open(style_path, "r") as f:
+                self.setStyleSheet(f.read())
+            logging.info("Modern dark theme applied.")
+        except FileNotFoundError:
+            logging.error(f"Stylesheet not found at {style_path}")
 
     def init_universe(self):
         """Builds the symbol index on startup if it's empty."""
