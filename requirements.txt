@@ -2,7 +2,6 @@
 PySide6
 yfinance
 mplfinance
-pandas-ta
 rapidfuzz>=3.9
 mplcursors
 
@@ -22,9 +21,9 @@ kiwisolver
 lxml
 matplotlib
 multitasking
-numpy<2.3
+numpy
 packaging
-pandas<2.3
+pandas
 peewee
 pillow
 platformdirs
