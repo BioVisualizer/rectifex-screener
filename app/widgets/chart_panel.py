@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTabWidget, QLabel, QPushButton,
-                               QHBoxLayout, QGroupBox, QFormLayout, QCheckBox, QFrame)
+                               QHBoxLayout, QGroupBox, QFormLayout, QCheckBox, QFrame, QSizePolicy)
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Slot, Qt
 
@@ -18,6 +18,10 @@ class ChartPanel(QWidget):
         self.chart_view = QLabel("Select a stock to display the chart.")
         self.chart_view.setMinimumHeight(400)
         self.chart_view.setFrameShape(QFrame.Shape.StyledPanel)
+
+        # This is the critical fix: prevent the label from expanding the layout.
+        # It will now ignore its own size hint and fill the available space.
+        self.chart_view.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
         self.chart_view.setScaledContents(True)
 
         # --- Stale Cache Badge ---
