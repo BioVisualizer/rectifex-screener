@@ -63,12 +63,17 @@ class DataWorker(QObject):
             fib_data = self.fib_engine(ohlcv_df['High'], ohlcv_df['Low'], ohlcv_df['Close'])
             signals = self.signal_engine.generate(ohlcv_df, indicators)
 
+            # --- Prepare data for charting ---
+            ohlcv_for_chart = ohlcv_df.tail(252)
+            # Slice indicators to match the ohlcv data, checking for empty series
+            indicators_for_chart = {k: v.tail(252) for k, v in indicators.items() if hasattr(v, 'tail')}
+
             chart_options = {
                 'show_ema_ribbon': True, 'show_bbands': True, 'show_vwap': True,
                 'show_rsi': True, 'show_macd': True, 'show_fib': True,
                 'bb_len': 20, 'bb_std': 2.0
             }
-            chart_path = self.chart_service.draw(resolved_symbol, ohlcv_df.tail(252), indicators, fib_data, chart_options)
+            chart_path = self.chart_service.draw(resolved_symbol, ohlcv_for_chart, indicators_for_chart, fib_data, chart_options)
 
             self.results_ready.emit({
                 "symbol": resolved_symbol, "ohlcv": ohlcv_df, "chart_path": chart_path,
