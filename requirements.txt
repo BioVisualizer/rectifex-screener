@@ -25,6 +25,7 @@ numpy
 packaging
 pandas
 peewee
+pyarrow
 pillow
 platformdirs
 playwright
