@@ -111,13 +111,15 @@ class ChartService:
                 addplot=addplots,
                 panel_ratios=(3, 1) if panel_id > 1 else (1,0),
                 figscale=figscale,
-                returnfig=True,
-                x_range=x_range
+                returnfig=True
             )
+
+            # --- Correctly set X-axis limits to prevent compression ---
+            ax_main = self.ax[0]
+            ax_main.set_xlim(df_ohlcv.index[0], df_ohlcv.index[-1])
 
             # --- Fibonacci Lines ---
             if fib and options.get('show_fib'):
-                ax_main = self.ax[0]
                 for level_name, price in fib['levels'].items():
                     color = 'green' if 'Retrace' in level_name else 'purple'
                     ax_main.axhline(y=price, color=color, linestyle='--', linewidth=0.7, alpha=0.8)
