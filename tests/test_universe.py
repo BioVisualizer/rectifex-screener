@@ -11,20 +11,21 @@ from core.data.universe import SymbolIndex, search_symbol, resolve_symbol
 @pytest.fixture
 def populated_index(tmp_path):
     """
-    Fixture to create and yield a populated SymbolIndex instance.
-    The key is to explicitly commit the data before yielding so the test
-    functions can access the committed state.
+    Fixture to create a populated SymbolIndex database and yield a new
+    index instance connected to it for testing. This ensures that the test
+    reads from a committed database state.
     """
     db_path = tmp_path / "test_universe.sqlite"
+    # Phase 1: Write to the DB and commit via the context manager's __exit__
     with SymbolIndex(db_path=db_path) as index:
         index.upsert_symbol({'symbol': 'AAPL', 'longName': 'Apple Inc.', 'exchange': 'NASDAQ'})
         index.upsert_symbol({'symbol': 'MSFT', 'longName': 'Microsoft Corporation', 'exchange': 'NASDAQ'})
         index.upsert_symbol({'symbol': 'ASML', 'longName': 'ASML Holding N.V.', 'exchange': 'AMS'})
 
-        # This is the critical step: commit the transaction before the test runs.
-        index._conn.commit()
-
-        yield index
+    # Phase 2: Yield a new index instance for the test to use.
+    # This instance will open a new connection and read the committed data.
+    with SymbolIndex(db_path=db_path) as test_index:
+        yield test_index
 
 def test_symbol_index_creation(populated_index):
     """Test that the SymbolIndex can be created and populated."""
