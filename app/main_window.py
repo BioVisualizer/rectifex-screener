@@ -108,6 +108,7 @@ class MainWindow(QMainWindow):
 
         main_splitter.addWidget(self.results_table)
         main_splitter.addWidget(self.chart_panel)
+        main_splitter.setStretchFactor(1, 1) # Allow the chart panel to expand
         main_splitter.setSizes([600, 1000])
 
         main_layout.addLayout(toolbar_layout)

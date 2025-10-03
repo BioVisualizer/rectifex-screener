@@ -110,9 +110,15 @@ class ChartPanel(QWidget):
             self.overview_layout.removeRow(0)
 
         # Add new data
+        market_cap = metadata.get('marketCap', 0)
+        if market_cap > 1e12:
+            market_cap_str = f"{market_cap / 1e12:.2f}T"
+        else:
+            market_cap_str = f"{market_cap / 1e9:.2f}B"
+
         self.overview_layout.addRow("Name:", QLabel(metadata.get('longName', 'N/A')))
         self.overview_layout.addRow("Exchange:", QLabel(metadata.get('exchange', 'N/A')))
-        self.overview_layout.addRow("Market Cap:", QLabel(f"{metadata.get('marketCap', 0) / 1e9:.2f}B" if metadata.get('marketCap') else "N/A"))
+        self.overview_layout.addRow("Market Cap:", QLabel(market_cap_str if market_cap else "N/A"))
         self.overview_layout.addRow("Trailing P/E:", QLabel(str(round(metadata.get('trailingPE', 0), 2)) if metadata.get('trailingPE') else "N/A"))
         self.overview_layout.addRow("Forward P/E:", QLabel(str(round(metadata.get('forwardPE', 0), 2)) if metadata.get('forwardPE') else "N/A"))
-        self.overview_layout.addRow("Div. Yield:", QLabel(f"{metadata.get('dividendYield', 0) * 100:.2f}%" if metadata.get('dividendYield') else "N/A"))
+        self.overview_layout.addRow("Div. Yield:", QLabel(f"{metadata.get('dividendYield', 0):.2f}%" if metadata.get('dividendYield') else "N/A"))
