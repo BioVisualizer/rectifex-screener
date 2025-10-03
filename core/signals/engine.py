@@ -64,13 +64,20 @@ class SignalsEngine:
 
             # 3. Pullback to VWAP
             vwap = row.get('VWAP_D')
+            prev_vwap = prev_row.get('VWAP_D')
             ema_200 = row.get('SMA_200')
-            if all([vwap, ema_200]):
+            if all([vwap, prev_vwap, ema_200]):
                 is_uptrend = row['Close'] > ema_200 # Simple trend filter
-                is_near_vwap = abs(row['Close'] - vwap) / vwap < 0.01 # Within 1% of VWAP
+
+                # A true pullback signal is a crossover event, not a state.
+                # We check if the price crossed back above VWAP from below.
+                was_below_vwap = prev_row['Close'] < prev_vwap
+                is_above_vwap = row['Close'] > vwap
+
                 is_bullish_candle = row['Close'] > row['Open']
-                if is_uptrend and is_near_vwap and is_bullish_candle:
-                    signals.append(Signal(row.name, "Pullback to VWAP", "bullish", 20, "Bounced off VWAP in an uptrend"))
+
+                if is_uptrend and was_below_vwap and is_above_vwap and is_bullish_candle:
+                    signals.append(Signal(row.name, "Pullback to VWAP", "bullish", 40, "Price bounced off VWAP in an uptrend"))
 
             # 4. RSI Range Shift
             rsi = row.get('RSI_14')
