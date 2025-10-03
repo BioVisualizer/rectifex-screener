@@ -69,7 +69,7 @@ class ScanWorker(QObject):
                     score += 15
 
                 # Format market cap for display
-                if market_cap > 1e12:
+                if market_cap >= 1e12:
                     market_cap_str = f"${market_cap / 1e12:.2f}T"
                 elif market_cap > 0:
                     market_cap_str = f"${market_cap / 1e9:.1f}B"
