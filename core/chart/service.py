@@ -116,6 +116,7 @@ class ChartService:
 
             # --- Fibonacci Lines ---
             if fib and options.get('show_fib'):
+                ax_main = self.ax[0]
                 for level_name, price in fib['levels'].items():
                     color = 'green' if 'Retrace' in level_name else 'purple'
                     ax_main.axhline(y=price, color=color, linestyle='--', linewidth=0.7, alpha=0.8)
