@@ -96,11 +96,12 @@ class ChartPanel(QWidget):
     @Slot(str)
     def update_chart(self, image_path: str):
         """Loads and displays the chart from the given image path."""
-        if image_path:
+        import os
+        if image_path and os.path.exists(image_path):
             self.current_chart_pixmap = QPixmap(image_path)
             self.chart_view.setPixmap(self.current_chart_pixmap)
         else:
-            self.chart_view.setText("Failed to load chart.")
+            self.chart_view.setText(f"Failed to load chart.\nPath: '{image_path}'")
             self.current_chart_pixmap = None
 
     @Slot(bool)
@@ -110,24 +111,32 @@ class ChartPanel(QWidget):
 
     @Slot(dict)
     def update_overview(self, metadata: dict):
-        """Populates the overview tab with fundamental data."""
+        """Populates the overview tab with fundamental data, handling None values gracefully."""
         # Clear old data
         while self.overview_layout.rowCount() > 0:
             self.overview_layout.removeRow(0)
 
-        # Add new data
-        market_cap = metadata.get('marketCap', 0)
-        if market_cap > 1e12:
-            market_cap_str = f"{market_cap / 1e12:.2f}T"
-        else:
-            market_cap_str = f"{market_cap / 1e9:.2f}B"
+        # Helper to format the data, returning "N/A" if the value is None
+        def format_value(value, formatter):
+            return formatter(value) if value is not None else "N/A"
 
-        self.overview_layout.addRow("Name:", QLabel(metadata.get('longName', 'N/A')))
-        self.overview_layout.addRow("Exchange:", QLabel(metadata.get('exchange', 'N/A')))
-        self.overview_layout.addRow("Market Cap:", QLabel(market_cap_str if market_cap else "N/A"))
-        self.overview_layout.addRow("Trailing P/E:", QLabel(str(round(metadata.get('trailingPE', 0), 2)) if metadata.get('trailingPE') else "N/A"))
-        self.overview_layout.addRow("Forward P/E:", QLabel(str(round(metadata.get('forwardPE', 0), 2)) if metadata.get('forwardPE') else "N/A"))
-        self.overview_layout.addRow("Div. Yield:", QLabel(f"{metadata.get('dividendYield', 0):.2f}%" if metadata.get('dividendYield') else "N/A"))
+        # Add new data with robust None-checking
+        self.overview_layout.addRow("Name:", QLabel(format_value(metadata.get('longName'), str)))
+        self.overview_layout.addRow("Exchange:", QLabel(format_value(metadata.get('exchange'), str)))
+
+        market_cap = metadata.get('marketCap')
+        if market_cap is not None:
+            if market_cap >= 1e12:
+                market_cap_str = f"${market_cap / 1e12:.2f}T"
+            else:
+                market_cap_str = f"${market_cap / 1e9:.2f}B"
+        else:
+            market_cap_str = "N/A"
+        self.overview_layout.addRow("Market Cap:", QLabel(market_cap_str))
+
+        self.overview_layout.addRow("Trailing P/E:", QLabel(format_value(metadata.get('trailingPE'), lambda v: f"{v:.2f}")))
+        self.overview_layout.addRow("Forward P/E:", QLabel(format_value(metadata.get('forwardPE'), lambda v: f"{v:.2f}")))
+        self.overview_layout.addRow("Div. Yield:", QLabel(format_value(metadata.get('dividendYield'), lambda v: f"{v * 100:.2f}%")))
 
     @Slot(list)
     def update_signals(self, signals: List[Signal]):
