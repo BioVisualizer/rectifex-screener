@@ -68,14 +68,14 @@ def auto_fib_levels(high: pd.Series, low: pd.Series, close: pd.Series, mode: str
             else: # Potential uptrend
                  # Find lowest low before the high
                  anchor_low_price = lookback_low[lookback_low.index <= anchor_high_date].min()
-                 anchor_low_date = lookback_low[lookback_low.index <= anchor_high_date].idxmax()
+                 anchor_low_date = lookback_low[lookback_low.index <= anchor_high_date].idxmin()
 
 
     if mode == "last_swing":
         anchor_high_price = lookback_high.max()
         anchor_high_date = lookback_high.idxmax()
         anchor_low_price = lookback_low.min()
-        anchor_low_date = lookback_low.idxmax()
+        anchor_low_date = lookback_low.idxmin()
 
     # Determine trend direction
     is_uptrend = anchor_high_date > anchor_low_date
