@@ -68,11 +68,19 @@ class ScanWorker(QObject):
                 if market_cap > 1e12: # > $1T
                     score += 15
 
+                # Format market cap for display
+                if market_cap > 1e12:
+                    market_cap_str = f"${market_cap / 1e12:.2f}T"
+                elif market_cap > 0:
+                    market_cap_str = f"${market_cap / 1e9:.1f}B"
+                else:
+                    market_cap_str = "N/A"
+
                 self.result_ready.emit({
                     'Ticker': ticker,
                     'Name': metadata.get('longName', 'N/A'),
                     'Score': score,
-                    'Market Cap': f"${market_cap/1e9:.1f}B" if market_cap else "N/A"
+                    'Market Cap': market_cap_str
                 })
 
             except Exception as e:

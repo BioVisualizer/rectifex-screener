@@ -13,6 +13,7 @@ class ChartPanel(QWidget):
     """
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.current_chart_pixmap = None
 
         # --- Main Layout ---
         main_layout = QVBoxLayout(self)
@@ -96,10 +97,11 @@ class ChartPanel(QWidget):
     def update_chart(self, image_path: str):
         """Loads and displays the chart from the given image path."""
         if image_path:
-            pixmap = QPixmap(image_path)
-            self.chart_view.setPixmap(pixmap)
+            self.current_chart_pixmap = QPixmap(image_path)
+            self.chart_view.setPixmap(self.current_chart_pixmap)
         else:
             self.chart_view.setText("Failed to load chart.")
+            self.current_chart_pixmap = None
 
     @Slot(bool)
     def set_stale_badge_visibility(self, visible: bool):
