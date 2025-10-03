@@ -220,6 +220,7 @@ class MainWindow(QMainWindow):
 
         self.chart_panel.update_chart(chart_path)
         self.chart_panel.update_overview(results['metadata'])
+        self.chart_panel.update_signals(results['signals'])
         self.chart_panel.set_stale_badge_visibility(results['is_stale'])
         self.chart_panel.export_button.setEnabled(True)
 
