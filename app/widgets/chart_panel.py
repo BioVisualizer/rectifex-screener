@@ -2,6 +2,10 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTabWidget, QLabel, QPushBu
                                QHBoxLayout, QGroupBox, QFormLayout, QCheckBox, QFrame, QSizePolicy)
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Slot, Qt
+from typing import List
+
+# Import the Signal dataclass for type hinting
+from core.signals.engine import Signal
 
 class ChartPanel(QWidget):
     """
@@ -122,3 +126,36 @@ class ChartPanel(QWidget):
         self.overview_layout.addRow("Trailing P/E:", QLabel(str(round(metadata.get('trailingPE', 0), 2)) if metadata.get('trailingPE') else "N/A"))
         self.overview_layout.addRow("Forward P/E:", QLabel(str(round(metadata.get('forwardPE', 0), 2)) if metadata.get('forwardPE') else "N/A"))
         self.overview_layout.addRow("Div. Yield:", QLabel(f"{metadata.get('dividendYield', 0):.2f}%" if metadata.get('dividendYield') else "N/A"))
+
+    @Slot(list)
+    def update_signals(self, signals: List[Signal]):
+        """Populates the signals tab with the latest analysis."""
+        # Clear old widgets from the layout
+        while self.signals_layout.count():
+            child = self.signals_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        if not signals:
+            self.signals_layout.addWidget(QLabel("No recent signals found."))
+            return
+
+        # Sort signals by date, most recent first
+        sorted_signals = sorted(signals, key=lambda s: s.ts, reverse=True)
+
+        for signal in sorted_signals:
+            # Create a visually distinct group box for each signal
+            signal_box = QGroupBox(f"{signal.ts.strftime('%Y-%m-%d')}: {signal.label}")
+            signal_box.setObjectName(f"SignalCard_{signal.direction.lower()}")
+
+            form_layout = QFormLayout(signal_box)
+            form_layout.addRow("Direction:", QLabel(signal.direction.capitalize()))
+            form_layout.addRow("Confidence:", QLabel(f"{signal.confidence:.0f} / 100"))
+
+            reason_label = QLabel(signal.reason)
+            reason_label.setWordWrap(True)
+            form_layout.addRow("Reason:", reason_label)
+
+            self.signals_layout.addWidget(signal_box)
+
+        self.signals_layout.addStretch(1)
