@@ -114,10 +114,6 @@ class ChartService:
                 returnfig=True
             )
 
-            # --- Correctly set X-axis limits to prevent compression ---
-            ax_main = self.ax[0]
-            ax_main.set_xlim(df_ohlcv.index[0], df_ohlcv.index[-1])
-
             # --- Fibonacci Lines ---
             if fib and options.get('show_fib'):
                 for level_name, price in fib['levels'].items():
