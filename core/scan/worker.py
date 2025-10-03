@@ -54,27 +54,27 @@ class ScanWorker(QObject):
                 if forward_pe and pe and 0 < forward_pe < pe:
                     score += 15 # Indicates expected earnings growth
 
-                # Score based on Dividend Yield
-                div_yield = metadata.get('dividendYield', 0)
-                if div_yield > 0:
-                    score += 10
-                if div_yield > 0.02: # > 2%
-                    score += 15
+                # Score based on Dividend Yield, checking for None
+                div_yield = metadata.get('dividendYield')
+                if div_yield is not None:
+                    if div_yield > 0:
+                        score += 10
+                    if div_yield > 0.02:
+                        score += 15
 
-                market_cap = metadata.get('marketCap', 0)
-                # Score based on Market Cap
-                if market_cap > 500e9: # > $500B
-                    score += 10
-                if market_cap > 1e12: # > $1T
-                    score += 15
+                # Score and format Market Cap, checking for None
+                market_cap = metadata.get('marketCap')
+                market_cap_str = "N/A"
+                if market_cap is not None:
+                    if market_cap > 500e9:
+                        score += 10
+                    if market_cap > 1e12:
+                        score += 15
 
-                # Format market cap for display
-                if market_cap >= 1e12:
-                    market_cap_str = f"${market_cap / 1e12:.2f}T"
-                elif market_cap > 0:
-                    market_cap_str = f"${market_cap / 1e9:.1f}B"
-                else:
-                    market_cap_str = "N/A"
+                    if market_cap >= 1e12:
+                        market_cap_str = f"${market_cap / 1e12:.2f}T"
+                    elif market_cap > 0:
+                        market_cap_str = f"${market_cap / 1e9:.1f}B"
 
                 self.result_ready.emit({
                     'Ticker': ticker,
