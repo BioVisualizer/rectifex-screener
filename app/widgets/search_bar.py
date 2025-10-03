@@ -93,6 +93,7 @@ class SearchBar(QWidget):
         # If the completer popup is visible and has a valid selection,
         # activated will handle it. Otherwise, submit the raw text.
         if self.completer.popup().isVisible() and self.completer.currentIndex().isValid():
+            # Let on_completer_activated handle it
             return
         self._submit_selection(self.search_input.text())
 
