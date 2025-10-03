@@ -96,6 +96,10 @@ class ChartService:
         chart_title = f"{symbol} - Advanced Chart Analysis"
         figscale = 1.5
 
+        # Define the x-axis range to ensure the chart is not compressed
+        # We use the last 252 trading days, which corresponds to about one year.
+        x_range = (df_ohlcv.index[0], df_ohlcv.index[-1])
+
         try:
             self.fig, self.ax = mpf.plot(
                 df_ohlcv,
@@ -107,7 +111,8 @@ class ChartService:
                 addplot=addplots,
                 panel_ratios=(3, 1) if panel_id > 1 else (1,0),
                 figscale=figscale,
-                returnfig=True
+                returnfig=True,
+                x_range=x_range
             )
 
             # --- Fibonacci Lines ---
