@@ -96,6 +96,15 @@ class ChartService:
         chart_title = f"{symbol} - Advanced Chart Analysis"
         figscale = 1.5
 
+        # Dynamically construct panel_ratios based on the number of panels
+        # The main panel gets a ratio of 3, each indicator panel gets a ratio of 1.
+        ratios = [3]  # Start with the main panel
+        if panel_id > 1:
+            # Add a ratio for each additional panel
+            ratios.extend([1] * (panel_id - 1))
+        panel_ratios = tuple(ratios)
+
+
         # Limit data to the last year (approx. 252 trading days) to prevent compression
         df_plot = df_ohlcv.tail(252)
 
@@ -108,7 +117,7 @@ class ChartService:
                 ylabel='Price',
                 volume=True,
                 addplot=addplots,
-                panel_ratios=(3, 1) if panel_id > 1 else (1,0),
+                panel_ratios=panel_ratios,
                 figscale=figscale,
                 returnfig=True
             )
