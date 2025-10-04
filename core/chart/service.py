@@ -96,13 +96,12 @@ class ChartService:
         chart_title = f"{symbol} - Advanced Chart Analysis"
         figscale = 1.5
 
-        # Define the x-axis range to ensure the chart is not compressed
-        # We use the last 252 trading days, which corresponds to about one year.
-        x_range = (df_ohlcv.index[0], df_ohlcv.index[-1])
+        # Limit data to the last year (approx. 252 trading days) to prevent compression
+        df_plot = df_ohlcv.tail(252)
 
         try:
             self.fig, self.ax = mpf.plot(
-                df_ohlcv,
+                df_plot,
                 type='candle',
                 style=style,
                 title=chart_title,
@@ -120,7 +119,7 @@ class ChartService:
                 for level_name, price in fib['levels'].items():
                     color = 'green' if 'Retrace' in level_name else 'purple'
                     ax_main.axhline(y=price, color=color, linestyle='--', linewidth=0.7, alpha=0.8)
-                    ax_main.text(df_ohlcv.index[-1], price, f' {level_name.split("_")[0]} {level_name.split("_")[1]}%',
+                    ax_main.text(df_plot.index[-1], price, f' {level_name.split("_")[0]} {level_name.split("_")[1]}%',
                                  va='center', ha='left', color=color, fontsize=8)
 
             # Save the figure
