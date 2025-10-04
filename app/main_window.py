@@ -257,6 +257,10 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Export failed: {e}", 10000)
 
 if __name__ == "__main__":
+    # Force software-based OpenGL rendering to avoid graphics driver issues.
+    # This must be set *before* the QApplication is instantiated.
+    QApplication.setAttribute(Qt.AA_UseSoftwareOpenGL)
+
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
