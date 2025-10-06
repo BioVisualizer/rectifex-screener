@@ -66,16 +66,26 @@ class SymbolIndex:
         return [{'symbol': row['symbol'], 'name': row['name']} for row in cursor.fetchall()]
 
 def search_symbol(query: str, top_k: int = 5, score_cutoff: int = 70, index: SymbolIndex = None) -> List[Dict]:
-    """Performs a fuzzy search, optionally on a provided index instance."""
+    """
+    Performs a fuzzy search against both symbol and name, optionally on a provided index instance.
+    """
     def _search(idx):
         symbols = idx.get_all_symbols()
-        # Ensure that items without a name are filtered out before creating choices
-        choices = {item['symbol']: item['name'] for item in symbols if item.get('name')}
-        if not choices:
+        # Create a mapping from symbol to name for all valid symbols
+        symbol_to_name = {item['symbol']: item['name'] for item in symbols if item.get('name')}
+        if not symbol_to_name:
             return []
+
+        # Create choices for fuzzy search, converting to lowercase for case-insensitivity
+        choices = {symbol: f"{symbol} {name}".lower() for symbol, name in symbol_to_name.items()}
+
         # process.extract with a dict returns (value, score, key) tuples
-        results = process.extract(query, choices, scorer=fuzz.token_sort_ratio, limit=top_k, score_cutoff=score_cutoff)
-        return [{'symbol': r[2], 'name': r[0], 'score': r[1]} for r in results]
+        # where value is the search string ("aapl apple inc."), and key is the symbol ("AAPL")
+        # Use partial_token_sort_ratio to correctly match subsets (e.g., "Apple" in "AAPL Apple Inc.")
+        results = process.extract(query.lower(), choices, scorer=fuzz.partial_token_sort_ratio, limit=top_k, score_cutoff=score_cutoff)
+
+        # Reconstruct the results with the clean, original name
+        return [{'symbol': r[2], 'name': symbol_to_name[r[2]], 'score': r[1]} for r in results]
 
     if index:
         return _search(index)
