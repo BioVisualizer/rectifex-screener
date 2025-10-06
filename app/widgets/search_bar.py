@@ -66,7 +66,7 @@ class SearchBar(QWidget):
 
     def on_text_changed(self, text: str):
         """When text changes, restart the search timer."""
-        if len(text) > 1:
+        if len(text) > 0:
             self.search_timer.start()
         else:
             self.completer.popup().hide()
