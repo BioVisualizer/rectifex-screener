@@ -14,7 +14,7 @@ from app.theming.palette import get_dark_palette
 
 # --- Core Service Imports ---
 from core.config import DEFAULT_UNIVERSE
-from core.data.universe import build_or_refresh_universe
+from core.data.universe import build_or_refresh_universe, resolve_symbol
 from core.data.loader import fetch_live_ohlcv, fetch_live_metadata
 from core.data.cache import CacheService
 from core.indicators.engine import IndicatorEngine
@@ -25,6 +25,35 @@ from core.export import export_single_stock_to_excel
 from core.scan.worker import ScanWorker
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+class SymbolResolverWorker(QObject):
+    """
+    Resolves a search query to a ticker symbol in a background thread.
+    """
+    finished = Signal()
+    resolved = Signal(str)
+    error = Signal(str)
+
+    def __init__(self, query: str):
+        super().__init__()
+        self.query = query
+
+    @Slot()
+    def run(self):
+        try:
+            logging.info(f"Resolving query: {self.query}")
+            result = resolve_symbol(self.query) # This function handles its own DB connection
+            if result and result.get('symbol'):
+                logging.info(f"Resolved '{self.query}' to '{result['symbol']}'")
+                self.resolved.emit(result['symbol'])
+            else:
+                self.error.emit(f"Could not resolve ticker for '{self.query}'")
+        except Exception as e:
+            logging.error(f"Error in symbol resolver for {self.query}: {e}", exc_info=True)
+            self.error.emit(str(e))
+        finally:
+            self.finished.emit()
+
 
 class DataWorker(QObject):
     """
@@ -117,7 +146,7 @@ class MainWindow(QMainWindow):
         self.setStatusBar(QStatusBar(self))
         self.statusBar().showMessage("Ready. Use the search bar or run a full scan.")
 
-        self.search_bar.symbolSelected.connect(self.start_analysis_for_symbol)
+        self.search_bar.symbolSelected.connect(self.start_symbol_resolution)
         self.chart_panel.export_button.clicked.connect(self.export_analysis_to_excel)
         self.scan_button.clicked.connect(self.start_full_scan)
         self.results_table.cellDoubleClicked.connect(self.on_table_double_click)
@@ -141,6 +170,28 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Symbol universe ready.", 5000)
         except Exception as e:
             self.statusBar().showMessage(f"Error initializing universe: {e}", 10000)
+
+    @Slot(str)
+    def start_symbol_resolution(self, query: str):
+        """
+        Starts the process of resolving a user's query to a valid ticker symbol.
+        """
+        if not query: return
+        self.statusBar().showMessage(f"Resolving '{query}'...")
+
+        self.resolve_thread = QThread()
+        self.resolve_worker = SymbolResolverWorker(query)
+        self.resolve_worker.moveToThread(self.resolve_thread)
+
+        self.resolve_thread.started.connect(self.resolve_worker.run)
+        self.resolve_worker.finished.connect(self.resolve_thread.quit)
+        self.resolve_worker.finished.connect(self.resolve_worker.deleteLater)
+        self.resolve_thread.finished.connect(self.resolve_thread.deleteLater)
+
+        self.resolve_worker.resolved.connect(self.start_analysis_for_symbol)
+        self.resolve_worker.error.connect(self.on_analysis_error)
+
+        self.resolve_thread.start()
 
     @Slot(str)
     def start_analysis_for_symbol(self, symbol: str):
@@ -200,7 +251,9 @@ class MainWindow(QMainWindow):
     def on_table_double_click(self, row, column):
         ticker_item = self.results_table.item(row, 0)
         if ticker_item:
-            self.start_analysis_for_symbol(ticker_item.text())
+            # Re-resolve the symbol to ensure we get the latest data,
+            # even if it's from the potentially cached table results.
+            self.start_symbol_resolution(ticker_item.text())
 
     @Slot(dict)
     def on_analysis_complete(self, results: dict):
