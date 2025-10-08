@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+from core.data.ticker_fetcher import get_default_tickers
+
 # Base directory for application data in user's cache
 APP_NAME = "com.rectifex.GlobalScreener"
 CACHE_DIR = Path(os.path.expanduser("~/.cache")) / APP_NAME
@@ -17,7 +19,5 @@ PARQUET_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 SNAPSHOT_DIR = CACHE_DIR / "snapshots"
 SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Default list of tickers for the universe (can be expanded later)
-DEFAULT_UNIVERSE = [
-    "AAPL", "MSFT", "GOOG", "AMZN", "NVDA", "TSLA", "META", "BRK-B", "JPM", "V"
-]
+# Default list of tickers for the universe sourced from yfinance's comprehensive list
+DEFAULT_UNIVERSE = get_default_tickers()
