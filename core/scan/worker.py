@@ -91,3 +91,4 @@ class ScanWorker(QObject):
 
     def stop(self):
         self.is_stopped = True
+

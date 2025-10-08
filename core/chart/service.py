@@ -140,3 +140,12 @@ class ChartService:
         except Exception as e:
             logging.error(f"Failed to draw or save chart for {symbol}: {e}")
             return None
+        finally:
+            # Ensure figures are closed to avoid memory leaks and blank charts
+            try:
+                if self.fig:
+                    import matplotlib.pyplot as plt
+                    plt.close(self.fig)
+            finally:
+                self.fig = None
+                self.ax = None
