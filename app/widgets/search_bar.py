@@ -89,12 +89,11 @@ class SearchBar(QWidget):
 
     @Slot()
     def on_return_pressed(self):
-        """Handles the return key press event."""
-        # If the completer popup is visible and has a valid selection,
-        # activated will handle it. Otherwise, submit the raw text.
-        if self.completer.popup().isVisible() and self.completer.currentIndex().isValid():
-            # Let on_completer_activated handle it
-            return
+        """
+        Handles the return key press event. This is now the primary way to
+        submit a ticker that is typed manually. The completer's 'activated'
+        signal handles selections from the popup list.
+        """
         self._submit_selection(self.search_input.text())
 
     @Slot()
