@@ -12,11 +12,11 @@ from PySide6.QtWidgets import (
     QSizePolicy,
 )
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import Slot, Qt
+from PySide6.QtCore import Slot, Qt, Signal
 from typing import List
 
 # Import the Signal dataclass for type hinting
-from core.signals.engine import Signal
+from core.signals.engine import Signal as SignalModel
 
 class ChartPanel(QWidget):
     """
@@ -45,7 +45,7 @@ class ChartPanel(QWidget):
         self.stale_badge.setVisible(False)
 
         chart_layout = QVBoxLayout()
-        chart_layout.addWidget(self.chart_view)
+        chart_layout.addWidget(self.chart_view, stretch=1)
         chart_layout.addWidget(self.stale_badge, alignment=Qt.AlignRight)
 
 
@@ -66,6 +66,9 @@ class ChartPanel(QWidget):
         self.cb_vwap = QCheckBox("VWAP")
         self.cb_rsi = QCheckBox("RSI Pane")
         self.cb_macd = QCheckBox("MACD Pane")
+
+        for checkbox in (self.cb_ema_ribbon, self.cb_bbands, self.cb_vwap, self.cb_rsi, self.cb_macd):
+            checkbox.setChecked(True)
         indicators_layout.addRow(self.cb_ema_ribbon)
         indicators_layout.addRow(self.cb_bbands)
         indicators_layout.addRow(self.cb_vwap)
@@ -76,6 +79,7 @@ class ChartPanel(QWidget):
         self.fib_tab = QWidget()
         fib_layout = QFormLayout(self.fib_tab)
         self.cb_fib_levels = QCheckBox("Show Fibonacci Levels")
+        self.cb_fib_levels.setChecked(True)
         fib_layout.addRow(self.cb_fib_levels)
 
         # Signals Tab
@@ -98,10 +102,49 @@ class ChartPanel(QWidget):
         toolbar_layout.addWidget(self.export_button)
 
         # --- Assembly ---
-        main_layout.addLayout(chart_layout)
+        main_layout.addLayout(chart_layout, stretch=3)
         main_layout.addLayout(toolbar_layout)
-        main_layout.addWidget(self.tab_widget)
+        main_layout.addWidget(self.tab_widget, stretch=2)
         self.setLayout(main_layout)
+
+        # --- Signals ---
+        for checkbox in (
+            self.cb_ema_ribbon,
+            self.cb_bbands,
+            self.cb_vwap,
+            self.cb_rsi,
+            self.cb_macd,
+            self.cb_fib_levels,
+        ):
+            checkbox.toggled.connect(self._emit_chart_options)
+
+        self.reload_button.clicked.connect(self._on_reload_clicked)
+
+    chartOptionsChanged = Signal(dict)
+    reloadRequested = Signal()
+
+    def get_chart_options(self) -> dict:
+        """Return the current state of the chart related controls."""
+        return {
+            "show_ema_ribbon": self.cb_ema_ribbon.isChecked(),
+            "show_bbands": self.cb_bbands.isChecked(),
+            "show_vwap": self.cb_vwap.isChecked(),
+            "show_rsi": self.cb_rsi.isChecked(),
+            "show_macd": self.cb_macd.isChecked(),
+            "show_fib": self.cb_fib_levels.isChecked(),
+            "bb_len": 20,
+            "bb_std": 2.0,
+        }
+
+    @Slot()
+    def _emit_chart_options(self):
+        """Notify listeners whenever the chart options change."""
+        self.chartOptionsChanged.emit(self.get_chart_options())
+
+    @Slot()
+    def _on_reload_clicked(self):
+        """Request a live reload of the currently displayed symbol."""
+        self.reloadRequested.emit()
 
     @Slot(str)
     def update_chart(self, image_path: str):
@@ -166,7 +209,7 @@ class ChartPanel(QWidget):
         self.overview_layout.addRow("Div. Yield:", QLabel(format_value(metadata.get('dividendYield'), lambda v: f"{v * 100:.2f}%")))
 
     @Slot(list)
-    def update_signals(self, signals: List[Signal]):
+    def update_signals(self, signals: List[SignalModel]):
         """Populates the signals tab with the latest analysis."""
         # Clear old widgets from the layout
         while self.signals_layout.count():

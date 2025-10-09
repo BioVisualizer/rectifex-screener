@@ -96,10 +96,12 @@ def search_symbol(query: str, top_k: int = 5, score_cutoff: int = 70, index: Sym
 def resolve_symbol(query: str, index: SymbolIndex = None) -> Optional[Dict]:
     """Resolves a query, optionally using a provided index instance."""
     query = query.strip().upper()
+    manual_fallback = None
     if TICKER_REGEX.search(query):
         logging.info(f"Query '{query}' matches ticker format. Attempting direct live fetch.")
         try:
             metadata = fetch_live_metadata(query)
+
             def upsert(idx):
                 idx.upsert_symbol(metadata)
 
@@ -112,7 +114,7 @@ def resolve_symbol(query: str, index: SymbolIndex = None) -> Optional[Dict]:
             return {'symbol': metadata['symbol'], 'name': metadata.get('longName'), 'source': 'exact_live'}
         except IOError as e:
             logging.warning(f"Live fetch for '{query}' failed: {e}. Falling back to search.")
-            pass
+            manual_fallback = {'symbol': query, 'name': query, 'source': 'manual_entry'}
 
     logging.info(f"Performing fuzzy search for '{query}'.")
     search_results = search_symbol(query, top_k=1, index=index)
@@ -120,6 +122,10 @@ def resolve_symbol(query: str, index: SymbolIndex = None) -> Optional[Dict]:
         resolved = search_results[0]
         logging.info(f"Resolved '{query}' to '{resolved['symbol']}' via fuzzy search with score {resolved['score']}.")
         return {'symbol': resolved['symbol'], 'name': resolved['name'], 'source': 'fuzzy_cache'}
+
+    if manual_fallback:
+        logging.info(f"Using user-provided ticker '{manual_fallback['symbol']}' despite missing live metadata.")
+        return manual_fallback
 
     logging.error(f"Could not resolve query: '{query}'. No exact match or confident fuzzy result.")
     return None
