@@ -109,6 +109,7 @@ class MainWindow(QMainWindow):
 
         self.apply_theme()
         self.latest_analysis_results = None
+        self.current_symbol = None
         self.chart_service = ChartService() # Chart service now lives on the main thread
 
         central_widget = QWidget()
@@ -148,6 +149,8 @@ class MainWindow(QMainWindow):
 
         self.search_bar.symbolSelected.connect(self.start_symbol_resolution)
         self.chart_panel.export_button.clicked.connect(self.export_analysis_to_excel)
+        self.chart_panel.chartOptionsChanged.connect(self.on_chart_options_changed)
+        self.chart_panel.reloadRequested.connect(self.on_chart_reload_requested)
         self.scan_button.clicked.connect(self.start_full_scan)
         self.results_table.cellDoubleClicked.connect(self.on_table_double_click)
 
@@ -196,6 +199,7 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def start_analysis_for_symbol(self, symbol: str):
         if not symbol: return
+        self.current_symbol = symbol
         self.statusBar().showMessage(f"Fetching live data for {symbol}...")
         self.thread = QThread()
         self.worker = DataWorker(symbol)
@@ -208,6 +212,7 @@ class MainWindow(QMainWindow):
         self.worker.results_ready.connect(self.on_analysis_complete)
         self.worker.error.connect(self.on_analysis_error)
 
+        self.chart_panel.reload_button.setEnabled(False)
         self.thread.start()
 
     @Slot()
@@ -260,22 +265,12 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Analysis complete.", 5000)
         self.latest_analysis_results = results
 
-        # --- Charting now happens on the main thread ---
-        ohlcv_for_chart = results['ohlcv'].tail(252)
-        indicators_for_chart = {k: v.tail(252) for k, v in results['indicators'].items() if hasattr(v, 'tail')}
-        chart_options = {
-            'show_ema_ribbon': True, 'show_bbands': True, 'show_vwap': True,
-            'show_rsi': True, 'show_macd': True, 'show_fib': True,
-            'bb_len': 20, 'bb_std': 2.0
-        }
-        chart_path = self.chart_service.draw(results['symbol'], ohlcv_for_chart, indicators_for_chart, results['fib_data'], chart_options)
-        self.latest_analysis_results['chart_path'] = chart_path # Update for export
-
-        self.chart_panel.update_chart(chart_path)
+        self.refresh_chart()
         self.chart_panel.update_overview(results['metadata'])
         self.chart_panel.update_signals(results['signals'])
         self.chart_panel.set_stale_badge_visibility(results['is_stale'])
         self.chart_panel.export_button.setEnabled(True)
+        self.chart_panel.reload_button.setEnabled(True)
 
     @Slot(str)
     def on_analysis_error(self, error_message: str):
@@ -283,6 +278,7 @@ class MainWindow(QMainWindow):
         self.chart_panel.chart_view.setText(f"Analysis failed for symbol.\nError: {error_message}")
         self.chart_panel.export_button.setEnabled(False)
         self.latest_analysis_results = None
+        self.chart_panel.reload_button.setEnabled(True)
 
     @Slot()
     def export_analysis_to_excel(self):
@@ -308,6 +304,38 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logging.error(f"Excel export failed: {e}")
             self.statusBar().showMessage(f"Export failed: {e}", 10000)
+
+    def refresh_chart(self):
+        """Regenerates the chart image using the latest analysis data and UI options."""
+        if not self.latest_analysis_results:
+            return
+
+        chart_options = self.chart_panel.get_chart_options()
+        ohlcv_for_chart = self.latest_analysis_results['ohlcv'].tail(252)
+        indicators_for_chart = {
+            k: (v.tail(252) if hasattr(v, 'tail') else v)
+            for k, v in self.latest_analysis_results['indicators'].items()
+        }
+        chart_path = self.chart_service.draw(
+            self.latest_analysis_results['symbol'],
+            ohlcv_for_chart,
+            indicators_for_chart,
+            self.latest_analysis_results['fib_data'],
+            chart_options,
+        )
+
+        if chart_path:
+            self.latest_analysis_results['chart_path'] = chart_path
+            self.chart_panel.update_chart(chart_path)
+
+    @Slot(dict)
+    def on_chart_options_changed(self, _options: dict):
+        self.refresh_chart()
+
+    @Slot()
+    def on_chart_reload_requested(self):
+        if self.current_symbol:
+            self.start_analysis_for_symbol(self.current_symbol)
 
 if __name__ == "__main__":
     # Force software-based OpenGL rendering to avoid graphics driver issues.
