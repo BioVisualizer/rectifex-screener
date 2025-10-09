@@ -1,5 +1,16 @@
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTabWidget, QLabel, QPushButton,
-                               QHBoxLayout, QGroupBox, QFormLayout, QCheckBox, QFrame, QSizePolicy)
+from PySide6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QTabWidget,
+    QLabel,
+    QPushButton,
+    QHBoxLayout,
+    QGroupBox,
+    QFormLayout,
+    QCheckBox,
+    QFrame,
+    QSizePolicy,
+)
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Slot, Qt
 from typing import List
@@ -23,11 +34,10 @@ class ChartPanel(QWidget):
         self.chart_view = QLabel("Select a stock to display the chart.")
         self.chart_view.setMinimumHeight(400)
         self.chart_view.setFrameShape(QFrame.Shape.StyledPanel)
-
-        # This is the critical fix: prevent the label from expanding the layout.
-        # It will now ignore its own size hint and fill the available space.
-        self.chart_view.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
-        self.chart_view.setScaledContents(True)
+        self.chart_view.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.chart_view.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
 
         # --- Stale Cache Badge ---
         self.stale_badge = QLabel("Stale Cache")
@@ -99,8 +109,9 @@ class ChartPanel(QWidget):
         import os
         if image_path and os.path.exists(image_path):
             self.current_chart_pixmap = QPixmap(image_path)
-            self.chart_view.setPixmap(self.current_chart_pixmap)
+            self._update_chart_display()
         else:
+            self.chart_view.clear()
             self.chart_view.setText(f"Failed to load chart.\nPath: '{image_path}'")
             self.current_chart_pixmap = None
 
@@ -108,6 +119,22 @@ class ChartPanel(QWidget):
     def set_stale_badge_visibility(self, visible: bool):
         """Shows or hides the 'Stale Cache' badge."""
         self.stale_badge.setVisible(visible)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_chart_display()
+
+    def _update_chart_display(self):
+        """Scale the current chart pixmap while keeping its aspect ratio."""
+        if not self.current_chart_pixmap:
+            return
+
+        scaled = self.current_chart_pixmap.scaled(
+            self.chart_view.size(),
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation,
+        )
+        self.chart_view.setPixmap(scaled)
 
     @Slot(dict)
     def update_overview(self, metadata: dict):
