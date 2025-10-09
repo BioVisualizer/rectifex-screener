@@ -94,7 +94,7 @@ class ChartService:
 
         # Chart configuration
         chart_title = f"{symbol} - Advanced Chart Analysis"
-        figscale = 1.5
+        figscale = 2.4
 
         # Dynamically construct panel_ratios based on the number of panels
         # The main panel gets a ratio of 3, each indicator panel gets a ratio of 1.

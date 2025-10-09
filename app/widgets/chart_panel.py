@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
     QSizePolicy,
+    QDialog,
 )
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Slot, Qt, Signal
@@ -17,6 +18,63 @@ from typing import List
 
 # Import the Signal dataclass for type hinting
 from core.signals.engine import Signal as SignalModel
+
+
+class ChartLabel(QLabel):
+    """Specialised QLabel that emits a signal on double-click."""
+
+    doubleClicked = Signal()
+
+    def mouseDoubleClickEvent(self, event):
+        super().mouseDoubleClickEvent(event)
+        self.doubleClicked.emit()
+
+
+class ChartPopupWindow(QDialog):
+    """Separate window that shows the chart and scales it with the window size."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Chart Viewer")
+        self.resize(1200, 800)
+        self.setModal(False)
+        self.setSizeGripEnabled(True)
+        self._chart_pixmap = None
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        self.label = QLabel("No chart available.")
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+
+        layout.addWidget(self.label)
+
+    def set_chart_pixmap(self, pixmap: QPixmap | None):
+        self._chart_pixmap = pixmap
+        self._update_display()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_display()
+
+    def _update_display(self):
+        if not self._chart_pixmap:
+            self.label.clear()
+            self.label.setText("No chart available.")
+            return
+
+        target_size = self.label.size()
+        if target_size.width() <= 0 or target_size.height() <= 0:
+            return
+
+        scaled = self._chart_pixmap.scaled(
+            target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+        self.label.setPixmap(scaled)
+
 
 class ChartPanel(QWidget):
     """
@@ -31,8 +89,8 @@ class ChartPanel(QWidget):
         main_layout.setContentsMargins(0, 5, 0, 0)
 
         # --- Chart Display Area ---
-        self.chart_view = QLabel("Select a stock to display the chart.")
-        self.chart_view.setMinimumHeight(400)
+        self.chart_view = ChartLabel("Select a stock to display the chart.")
+        self.chart_view.setMinimumHeight(520)
         self.chart_view.setFrameShape(QFrame.Shape.StyledPanel)
         self.chart_view.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.chart_view.setSizePolicy(
@@ -119,6 +177,9 @@ class ChartPanel(QWidget):
             checkbox.toggled.connect(self._emit_chart_options)
 
         self.reload_button.clicked.connect(self._on_reload_clicked)
+        self.chart_view.doubleClicked.connect(self._open_chart_popup)
+
+        self.chart_popup = ChartPopupWindow(self)
 
     chartOptionsChanged = Signal(dict)
     reloadRequested = Signal()
@@ -153,10 +214,14 @@ class ChartPanel(QWidget):
         if image_path and os.path.exists(image_path):
             self.current_chart_pixmap = QPixmap(image_path)
             self._update_chart_display()
+            if self.chart_popup:
+                self.chart_popup.set_chart_pixmap(self.current_chart_pixmap)
         else:
             self.chart_view.clear()
             self.chart_view.setText(f"Failed to load chart.\nPath: '{image_path}'")
             self.current_chart_pixmap = None
+            if self.chart_popup:
+                self.chart_popup.set_chart_pixmap(None)
 
     @Slot(bool)
     def set_stale_badge_visibility(self, visible: bool):
@@ -178,6 +243,17 @@ class ChartPanel(QWidget):
             Qt.SmoothTransformation,
         )
         self.chart_view.setPixmap(scaled)
+
+    @Slot()
+    def _open_chart_popup(self):
+        """Open the detached chart viewer window."""
+        if not self.current_chart_pixmap:
+            return
+
+        self.chart_popup.set_chart_pixmap(self.current_chart_pixmap)
+        self.chart_popup.show()
+        self.chart_popup.raise_()
+        self.chart_popup.activateWindow()
 
     @Slot(dict)
     def update_overview(self, metadata: dict):

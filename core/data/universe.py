@@ -71,21 +71,47 @@ def search_symbol(query: str, top_k: int = 5, score_cutoff: int = 70, index: Sym
     """
     def _search(idx):
         symbols = idx.get_all_symbols()
-        # Create a mapping from symbol to name for all valid symbols
-        symbol_to_name = {item['symbol']: item['name'] for item in symbols if item.get('name')}
-        if not symbol_to_name:
-            return []
+        # Create a mapping from symbol to name with sensible fallbacks
+        symbol_to_name = {
+            item['symbol']: (item.get('name') or item['symbol'])
+            for item in symbols
+        }
 
-        # Create choices for fuzzy search, converting to lowercase for case-insensitivity
-        choices = {symbol: f"{symbol} {name}".lower() for symbol, name in symbol_to_name.items()}
+        if symbol_to_name:
+            # Create choices for fuzzy search, converting to lowercase for case-insensitivity
+            choices = {
+                symbol: f"{symbol} {name}".lower()
+                for symbol, name in symbol_to_name.items()
+            }
 
-        # process.extract with a dict returns (value, score, key) tuples
-        # where value is the search string ("aapl apple inc."), and key is the symbol ("AAPL")
-        # Use partial_token_sort_ratio to correctly match subsets (e.g., "Apple" in "AAPL Apple Inc.")
-        results = process.extract(query.lower(), choices, scorer=fuzz.partial_token_sort_ratio, limit=top_k, score_cutoff=score_cutoff)
+            results = process.extract(
+                query.lower(),
+                choices,
+                scorer=fuzz.partial_token_sort_ratio,
+                limit=top_k,
+                score_cutoff=score_cutoff,
+            )
 
-        # Reconstruct the results with the clean, original name
-        return [{'symbol': r[2], 'name': symbol_to_name[r[2]], 'score': r[1]} for r in results]
+            return [
+                {'symbol': r[2], 'name': symbol_to_name[r[2]], 'score': r[1]}
+                for r in results
+            ]
+
+        # Fallback: if the index is empty (e.g., first run without network),
+        # use the static default universe to provide quick symbol suggestions.
+        fallback_symbols = sorted(set(DEFAULT_UNIVERSE))
+        fallback_choices = {symbol: symbol.lower() for symbol in fallback_symbols}
+        fallback_results = process.extract(
+            query.lower(),
+            fallback_choices,
+            scorer=fuzz.partial_token_sort_ratio,
+            limit=top_k,
+        )
+        return [
+            {'symbol': r[2], 'name': r[2], 'score': r[1]}
+            for r in fallback_results
+            if r[1] >= score_cutoff
+        ]
 
     if index:
         return _search(index)
