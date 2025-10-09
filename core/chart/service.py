@@ -125,11 +125,21 @@ class ChartService:
             # --- Fibonacci Lines ---
             if fib and options.get('show_fib'):
                 ax_main = self.ax[0]
+                y_transform = ax_main.get_yaxis_transform()
                 for level_name, price in fib['levels'].items():
                     color = 'green' if 'Retrace' in level_name else 'purple'
+                    label = f"{level_name.split('_')[0]} {level_name.split('_')[1]}%"
                     ax_main.axhline(y=price, color=color, linestyle='--', linewidth=0.7, alpha=0.8)
-                    ax_main.text(df_plot.index[-1], price, f' {level_name.split("_")[0]} {level_name.split("_")[1]}%',
-                                 va='center', ha='left', color=color, fontsize=8)
+                    ax_main.text(
+                        0.995,
+                        price,
+                        f" {label}",
+                        va='center',
+                        ha='right',
+                        color=color,
+                        fontsize=8,
+                        transform=y_transform,
+                    )
 
             # Save the figure
             filepath = SNAPSHOT_DIR / f"{symbol.lower()}_chart.png"
