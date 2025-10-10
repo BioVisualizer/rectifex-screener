@@ -217,12 +217,32 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def start_full_scan(self):
-        self.statusBar().showMessage("Starting full scan...")
+        query = self.search_bar.get_search_text() if hasattr(self.search_bar, "get_search_text") else ""
+        if query:
+            self.statusBar().showMessage(f"Resolving scan target '{query}'...")
+            try:
+                resolved = resolve_symbol(query)
+            except Exception as exc:
+                logging.error(f"Failed to resolve scan query '{query}': {exc}")
+                self.statusBar().showMessage(f"Error resolving '{query}': {exc}", 10000)
+                return
+
+            if not resolved or not resolved.get("symbol"):
+                self.statusBar().showMessage(f"Could not resolve ticker for '{query}'", 10000)
+                return
+
+            tickers_to_scan = [resolved["symbol"]]
+            status_message = f"Starting scan for {resolved['symbol']}..."
+        else:
+            tickers_to_scan = DEFAULT_UNIVERSE
+            status_message = "Starting full scan..."
+
+        self.statusBar().showMessage(status_message)
         self.scan_button.setEnabled(False)
         self.results_table.setRowCount(0)
 
         self.scan_thread = QThread()
-        self.scan_worker = ScanWorker(DEFAULT_UNIVERSE)
+        self.scan_worker = ScanWorker(tickers_to_scan)
         self.scan_worker.moveToThread(self.scan_thread)
 
         self.scan_thread.started.connect(self.scan_worker.run)
