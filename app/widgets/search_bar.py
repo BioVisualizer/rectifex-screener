@@ -64,6 +64,10 @@ class SearchBar(QWidget):
             self.search_input.clear()
             self.completer.popup().hide()
 
+    def get_search_text(self) -> str:
+        """Return the current raw text in the search input."""
+        return self.search_input.text().strip()
+
     def on_text_changed(self, text: str):
         """When text changes, restart the search timer."""
         if len(text) > 0:
